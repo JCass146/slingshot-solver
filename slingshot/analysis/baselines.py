@@ -332,6 +332,8 @@ def compare_3body_with_baselines(
     R_p: float,
     make_plots: bool = True,
     plot_save_dir: Optional[str] = None,
+    figsize: Tuple[float, float] = (10, 6),
+    dpi: int = 150,
 ) -> Dict[str, Any]:
     """
     Compare 3-body trajectory with 2-body hyperbola and monopole baselines.
@@ -350,6 +352,10 @@ def compare_3body_with_baselines(
         Generate comparison plots
     plot_save_dir : str, optional
         Directory to save plots. If None, plots are shown.
+    figsize : Tuple[float, float]
+        Figure size (inches) for comparison plots
+    dpi : int
+        Dots per inch for saved plot files
     
     Returns
     -------
@@ -487,7 +493,7 @@ def compare_3body_with_baselines(
             
             mask3 = r_rel <= r_cut
             
-            fig, ax = plt.subplots(figsize=(10, 6))
+            fig, ax = plt.subplots(figsize=figsize)
             ax.plot(x_hyp, y_hyp, label="2-body hyperbola", linewidth=2, alpha=0.7)
             ax.plot(dx[mask3], dy[mask3], label="3-body (planet frame)", linewidth=2, alpha=0.7)
             ax.scatter(0, 0, s=100, c='k', marker='*', label='Planet', zorder=5)
@@ -499,13 +505,13 @@ def compare_3body_with_baselines(
             ax.grid(True, alpha=0.3)
             
             if plot_save_dir:
-                fig.savefig(f"{plot_save_dir}/planet_frame_comparison.png", dpi=150)
+                fig.savefig(f"{plot_save_dir}/planet_frame_comparison.png", dpi=dpi)
                 plt.close(fig)
             else:
                 plt.show()
         
         # Barycentric comparison
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=figsize)
         xsat_3b = sol.y[8]
         ysat_3b = sol.y[9]
         x_star = sol.y[0]
@@ -528,7 +534,7 @@ def compare_3body_with_baselines(
         ax.grid(True, alpha=0.3)
         
         if plot_save_dir:
-            fig.savefig(f"{plot_save_dir}/barycentric_comparison.png", dpi=150)
+            fig.savefig(f"{plot_save_dir}/barycentric_comparison.png", dpi=dpi)
             plt.close(fig)
         else:
             plt.show()

@@ -17,6 +17,7 @@ def animate_trajectory(
     output_format: str = "mp4",
     fps: int = 30,
     figsize: tuple = (10, 10),
+    dpi: int = 100,
     show_bodies: bool = True,
     R_p: float = 71492.0,
     m_star: Optional[float] = None,
@@ -37,6 +38,8 @@ def animate_trajectory(
         Frames per second
     figsize : tuple
         Figure size (inches)
+    dpi : int
+        Dots per inch for saved animation
     show_bodies : bool
         Show star/planet as circles
     R_p : float
@@ -147,10 +150,10 @@ def animate_trajectory(
     try:
         if output_format.lower() == 'mp4':
             writer = FFMpegWriter(fps=fps, codec='libx264', bitrate=2000)
-            anim.save(str(output_file), writer=writer, dpi=100)
+            anim.save(str(output_file), writer=writer, dpi=dpi)
         elif output_format.lower() == 'gif':
             writer = PillowWriter(fps=fps)
-            anim.save(str(output_file), writer=writer, dpi=100)
+            anim.save(str(output_file), writer=writer, dpi=dpi)
         else:
             raise ValueError(f"Unsupported format: {output_format}")
     finally:
@@ -164,6 +167,8 @@ def animate_phase_space(
     output_dir: str = "./results/frames",
     output_format: str = "mp4",
     fps: int = 30,
+    figsize: tuple = (8, 8),
+    dpi: int = 100,
 ) -> str:
     """
     Animate velocity phase space evolution (v_radial, v_normal).
@@ -178,6 +183,10 @@ def animate_phase_space(
         "mp4" or "gif"
     fps : int
         Frames per second
+    figsize : tuple
+        Figure size (inches)
+    dpi : int
+        Dots per inch for saved animation
     
     Returns
     -------
@@ -224,7 +233,7 @@ def animate_phase_space(
     vrad_lim = [np.min(v_rad) * 1.2, np.max(v_rad) * 1.2]
     vnorm_lim = [np.min(v_norm) * 1.2, np.max(v_norm) * 1.2]
     
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=figsize)
     
     line, = ax.plot([], [], lw=2, alpha=0.7, color='blue')
     point, = ax.plot([], [], 'o', markersize=8, color='red', zorder=5)
@@ -261,10 +270,10 @@ def animate_phase_space(
     try:
         if output_format.lower() == 'mp4':
             writer = FFMpegWriter(fps=fps, codec='libx264', bitrate=1500)
-            anim.save(str(output_file), writer=writer, dpi=100)
+            anim.save(str(output_file), writer=writer, dpi=dpi)
         elif output_format.lower() == 'gif':
             writer = PillowWriter(fps=fps)
-            anim.save(str(output_file), writer=writer, dpi=100)
+            anim.save(str(output_file), writer=writer, dpi=dpi)
     finally:
         plt.close(fig)
     
@@ -278,6 +287,7 @@ def generate_all_animations(
     video_format: str = "mp4",
     animate_trajectory: bool = True,
     animate_phase_space: bool = True,
+    dpi: int = 100,
 ) -> Dict[str, str]:
     """
     Generate all requested animation types.
@@ -296,6 +306,8 @@ def generate_all_animations(
         Generate trajectory animation
     animate_phase_space : bool
         Generate phase-space animation
+    dpi : int
+        Dots per inch for saved animations
     
     Returns
     -------
@@ -307,7 +319,8 @@ def generate_all_animations(
     try:
         if animate_trajectory:
             results['trajectory'] = animate_trajectory(
-                sol, output_dir=output_dir, output_format=video_format, fps=video_fps
+                sol, output_dir=output_dir, output_format=video_format, fps=video_fps,
+                dpi=dpi,
             )
     except Exception as e:
         print(f"Trajectory animation failed: {e}")
@@ -316,7 +329,8 @@ def generate_all_animations(
     try:
         if animate_phase_space:
             results['phase_space'] = animate_phase_space(
-                sol, output_dir=output_dir, output_format=video_format, fps=video_fps
+                sol, output_dir=output_dir, output_format=video_format, fps=video_fps,
+                dpi=dpi,
             )
     except Exception as e:
         print(f"Phase-space animation failed: {e}")

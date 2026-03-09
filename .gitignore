@@ -2,6 +2,7 @@
 results/
 Archive/
 Paper/
+branches/
 
 # Generated images
 *.png

@@ -69,6 +69,7 @@ def plot_sampling_parameter_distributions(
     cfg: Optional[Any] = None,
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (9, 4.5),
 ) -> Dict[str, plt.Figure]:
     """Plot proposal-parameter distributions with config cutoffs overlaid.
 
@@ -183,7 +184,7 @@ def plot_sampling_parameter_distributions(
         else:
             arr_ok = np.array([], dtype=float)
 
-        fig, ax = plt.subplots(figsize=(9, 4.5))
+        fig, ax = plt.subplots(figsize=figsize)
         ax.hist(arr, bins=40, alpha=0.55, edgecolor="black", label=f"All (n={arr.size})")
         if arr_ok.size > 0:
             ax.hist(arr_ok, bins=30, alpha=0.55, edgecolor="black", label=f"Successful (n={arr_ok.size})")
@@ -553,6 +554,7 @@ def plot_star_proximity_distribution(
     clearance_Rstar: Optional[float] = None,
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (14, 5),
 ) -> plt.Figure:
     """Plot histogram of closest-approach distance to the star.
 
@@ -579,7 +581,7 @@ def plot_star_proximity_distribution(
     r_ok = r_star_all[ok]
     r_ok = r_ok[np.isfinite(r_ok)]
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
 
     # — All particles (that have a valid analysis) —
     r_all_valid = r_star_all[np.isfinite(r_star_all)]
@@ -671,6 +673,7 @@ def plot_planet_frame_diagnostics(
     R_star_km: float,
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (14, 11),
 ) -> plt.Figure:
     """Plot planet-frame diagnostic quantities for re-run candidates.
 
@@ -701,7 +704,7 @@ def plot_planet_frame_diagnostics(
     e_planet = np.array(e_planet)
     r_min_star = np.array(r_min_star)
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 11))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     idx = np.arange(len(dv_pf))
 
     # planet-frame Δv (should be ~0 for pure 2-body flyby)
@@ -851,6 +854,7 @@ def plot_multi_candidate_overlay(
     top_n: int = 5,
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (11, 11),
 ) -> plt.Figure:
     """Overlay the top-N best candidate trajectories on a single figure.
 
@@ -866,7 +870,7 @@ def plot_multi_candidate_overlay(
     n = min(top_n, len(sols))
     cmap = plt.cm.viridis(np.linspace(0.1, 0.9, n))
 
-    fig, ax = plt.subplots(figsize=(11, 11))
+    fig, ax = plt.subplots(figsize=figsize)
 
     for k in range(n):
         sol = sols[k]
@@ -910,6 +914,7 @@ def plot_rejection_breakdown(
     mc: Dict[str, Any],
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (10, 5),
 ) -> plt.Figure:
     """Bar chart of rejection/failure reasons from Monte Carlo results.
 
@@ -931,7 +936,7 @@ def plot_rejection_breakdown(
     labels = sorted(reason_counts, key=reason_counts.get, reverse=True)
     counts = [reason_counts[l] for l in labels]
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize)
     colors = ["#2ca02c" if l == "success" else "#d62728" if "collision" in l
               else "#ff7f0e" for l in labels]
     ax.barh(labels, counts, color=colors, alpha=0.8, edgecolor="black")
@@ -955,6 +960,7 @@ def plot_parameter_correlations(
     mc: Dict[str, Any],
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (13, 11),
 ) -> plt.Figure:
     """Scatter matrix of key MC outcome metrics for successful particles.
 
@@ -973,7 +979,7 @@ def plot_parameter_correlations(
     dv_vec = mc.get("delta_v_vec", np.full_like(mc["delta_v"], np.nan))[ok]
     r_star = mc.get("r_star_min", np.full_like(mc["delta_v"], np.nan))[ok]
 
-    fig, axes = plt.subplots(2, 2, figsize=(13, 11))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
 
     # Δv vs deflection
     ax = axes[0, 0]
@@ -1086,6 +1092,7 @@ def plot_energy_cdf(
     mc: Dict[str, Any],
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (10, 6),
     *,
     analyses_best: Optional[List[Dict[str, Any]]] = None,
     E_star_narrowed: Optional[float] = None,
@@ -1114,7 +1121,7 @@ def plot_energy_cdf(
     # Coarse MC energies — use scalar ΔV as proxy
     energies_mc = 0.5 * mc["delta_v"][ok] ** 2
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=figsize)
 
     # Coarse MC CDF
     if energies_mc.size > 0:
@@ -1171,6 +1178,7 @@ def plot_publication_objectives_dashboard(
     clearance_Rstar: Optional[float] = None,
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (15, 14),
 ) -> plt.Figure:
     """Publication-focused diagnostic dashboard (6 panels).
 
@@ -1191,7 +1199,7 @@ def plot_publication_objectives_dashboard(
     r_star_min = np.asarray(mc.get("r_star_min", np.full_like(mc["delta_v"], np.nan)))[ok]
 
     # Keep report layouts to max 2 side-by-side panels.
-    fig, axes = plt.subplots(3, 2, figsize=(15, 14))
+    fig, axes = plt.subplots(3, 2, figsize=figsize)
 
     # Panel A: Multi-objective tradeoff + Pareto frontier
     ax = axes[0, 0]
@@ -1535,6 +1543,7 @@ def plot_candidate_ranking_diagnostics(
     R_star_km: Optional[float] = None,
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (14, 10),
 ) -> plt.Figure:
     """Detailed ranking diagnostics for re-run candidates."""
     rows = []
@@ -1556,7 +1565,7 @@ def plot_candidate_ranking_diagnostics(
             "rstar_rs": float(rstar / R_star_km) if R_star_km and np.isfinite(rstar) else np.nan,
         })
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
     if not rows:
         for ax in axes.ravel():
             ax.text(0.5, 0.5, "No valid re-run candidates", ha="center", va="center",

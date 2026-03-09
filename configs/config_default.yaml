@@ -10,6 +10,8 @@ system:
   a_planet_AU: 0.0896
   bulk_velocity_vx_kms: 0.0  # Optional system bulk velocity (Galilean boost)
   bulk_velocity_vy_kms: 0.0
+  orbital_phase_rad: 0.0      # Planet at +x at t=0
+  prograde: true              # Counter-clockwise orbit
 
 sampling:
   mode: barycentric  # "barycentric" or "planet"
@@ -28,6 +30,8 @@ sampling:
   v_rel_min_kms: 12.0
   v_rel_max_kms: 80.0
   
+  r_init_AU: null               # Fixed initial distance from barycenter (AU); null = 2× impact param
+
   # Barycentric filtering
   bary_unbound_requirement: both  # null, "pre", "post", "either", "both"
 
@@ -40,6 +44,7 @@ numerical:
   flyby_r_min_max_hill: 10.0    # Max r_min in Hill-sphere radii (rejects incomplete flybys; null to disable)
   escape_radius_factor: 3.0     # Multiplier on r0_bary for escape termination (higher = fuller swing)
   softening_km: 1000.0          # Plummer softening length (km); caps force gradient at close approach (0 = Newtonian)
+  star_min_clearance_Rstar: null  # Min star approach in R_star; null = disabled
 
 pipeline:
   N_particles: 3000
@@ -76,8 +81,20 @@ visualization:
   
   figure_dpi: 150
   figure_format: png
+  figure_size_landscape: [14.0, 8.0]
+  figure_size_square: [11.0, 11.0]
+  animation_dpi: 100
   generate_publication_dashboard: true
   generate_candidate_ranking_plot: true
+  split_subplot_figures: true
+  generate_poincare_maps: false
+  generate_oberth_maps: false
+  generate_trajectory_tracks: true
+  generate_star_trajectory_diagnostics: false
+  generate_trajectory_heatmap: false
+  heatmap_grid_resolution: 60
+  heatmap_approach_angles_deg: [0.0, 45.0, 85.0]
+  top_n_overlay: 5
   trajectory_gradient_mode: hexbin          # legacy | line_overlay | hexbin | kde | time_video
   trajectory_overlay_lines: true            # set false for pure gradient field
   trajectory_overlay_line_count: 90         # max representative lines when overlay is enabled
@@ -109,3 +126,26 @@ two_body:
   num_angles: 200
   num_points: 400
   output_dir: results/two_body
+
+uncertainty:
+  enabled: false
+  n_draws: 50
+  seed: null
+  bootstrap_n_resample: 200
+  parameters: {}
+
+robustness:
+  enabled: false
+  seed: null
+  convergence_N: [500, 1000, 2000, 4000, 8000]
+  softening_values: [0.0, 10.0, 50.0, 100.0, 500.0, 1000.0]
+  tolerance_values: [1.0e-10, 1.0e-11, 1.0e-12, 1.0e-13]
+  clearance_values: [1.5, 2.0, 3.0, 5.0]
+  flyby_values: [0.3, 0.5, 0.8, 1.0, 3.0, 5.0]
+  metric_names: ["delta_v", "delta_v_vec", "energy_from_planet_orbit"]
+
+tiering:
+  enabled: true
+  planet_dominated_threshold: 2.0
+  hybrid_threshold: 0.5
+  top_n_per_tier: 10

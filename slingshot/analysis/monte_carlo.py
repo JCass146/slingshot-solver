@@ -407,9 +407,13 @@ def run_monte_carlo(
     # Initialize star+planet system (optionally with system bulk velocity)
     bulk_vx = sampling_kwargs.get('bulk_velocity_vx_kms', 0.0)
     bulk_vy = sampling_kwargs.get('bulk_velocity_vy_kms', 0.0)
+    phase = sampling_kwargs.get('orbital_phase_rad', 0.0)
+    prograde = sampling_kwargs.get('prograde', True)
     Y_sp0 = init_hot_jupiter_barycentric(
         m_star=m_star,
         m_p=m_p,
+        phase=phase,
+        prograde=prograde,
         bulk_velocity_vx_kms=bulk_vx,
         bulk_velocity_vy_kms=bulk_vy,
     )

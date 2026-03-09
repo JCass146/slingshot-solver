@@ -245,6 +245,7 @@ def plot_poincare_heatmaps(
     body_label: str = "Star",
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (14, 8),
 ) -> List[plt.Figure]:
     """Generate standalone Poincare (b vs alpha_inf) heatmaps."""
     mu = G_KM * M_body_kg
@@ -281,7 +282,7 @@ def plot_poincare_heatmaps(
         if save_dir:
             fig.savefig(Path(save_dir) / fname, dpi=dpi)
 
-    fig2, ax = plt.subplots(figsize=(14, 8))
+    fig2, ax = plt.subplots(figsize=figsize)
     cf = ax.pcolormesh(a_plot, b_plot, grid["deltaV"], cmap="hot_r", shading="gouraud")
     fig2.colorbar(cf, ax=ax, label="Delta-V (km/s)")
     ax.contour(a_plot, b_plot, grid["theta"], levels=10, colors="cyan", linewidths=1.5, alpha=0.6)
@@ -526,6 +527,7 @@ def plot_encounter_2d_cartesian(
     body_label: str = "Star",
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (14, 8),
 ) -> List[plt.Figure]:
     """Generate standalone Cartesian (x, y) encounter heatmaps."""
     mu = G_KM * M_body_kg
@@ -550,7 +552,7 @@ def plot_encounter_2d_cartesian(
             (grid["b"], "Impact parameter b (km)", "cool", "impact_parameter"),
         ]
         for data, label, cmap, slug in panels:
-            fig, ax = plt.subplots(figsize=(14, 8))
+            fig, ax = plt.subplots(figsize=figsize)
             cf = ax.contourf(x_plot, y_plot, data, levels=30, cmap=cmap)
             fig.colorbar(cf, ax=ax, label=label)
             ax.add_patch(Circle((0, 0), 0.1, fill=False, ec="cyan", lw=1.5))
@@ -577,6 +579,7 @@ def plot_encounter_2d_trajectories(
     body_label: str = "Star",
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (14, 8),
 ) -> List[plt.Figure]:
     """Generate standalone delta-V heatmaps per approach angle."""
     mu = G_KM * M_body_kg
@@ -594,7 +597,7 @@ def plot_encounter_2d_trajectories(
         y_plot = grid["Y"] / 1e6
         suffix = f"{angle_deg:.0f}deg"
 
-        fig, ax = plt.subplots(figsize=(14, 8))
+        fig, ax = plt.subplots(figsize=figsize)
         cf = ax.contourf(x_plot, y_plot, grid["deltaV"], levels=30, cmap="hot_r")
         fig.colorbar(cf, ax=ax, label="Delta-V (km/s)")
         ax.add_patch(Circle((0, 0), 0.15, fill=True, fc="gold", ec="orange", lw=1.5, alpha=0.7))
@@ -624,6 +627,7 @@ def plot_oberth_comparison(
     body_label: str = "Star",
     save_dir: Optional[Path] = None,
     dpi: int = 150,
+    figsize: Tuple[float, float] = (14, 8),
 ) -> List[plt.Figure]:
     """Compare no-burn vs Oberth burn with standalone figures."""
     mu = G_KM * M_body_kg
@@ -666,7 +670,7 @@ def plot_oberth_comparison(
         (gain, "Oberth gain (km/s)", "RdYlGn", f"oberth_comparison_gain_{tag}.png"),
     ]
     for data, label, cmap, fname in panels:
-        fig, ax = plt.subplots(figsize=(14, 8))
+        fig, ax = plt.subplots(figsize=figsize)
         cf = ax.pcolormesh(a_plot, b_plot, data, cmap=cmap, shading="gouraud")
         fig.colorbar(cf, ax=ax, label=label)
         ax.set_yscale("log")
@@ -678,7 +682,7 @@ def plot_oberth_comparison(
         if save_dir:
             fig.savefig(Path(save_dir) / fname, dpi=dpi)
 
-    fig2, ax = plt.subplots(figsize=(14, 8))
+    fig2, ax = plt.subplots(figsize=figsize)
     cf = ax.pcolormesh(a_plot, b_plot, gain, cmap="RdYlGn", shading="gouraud")
     fig2.colorbar(cf, ax=ax, label="Oberth gain (km/s)")
     ax.contour(a_plot, b_plot, dv_no, levels=12, colors="gray", alpha=0.5)
@@ -715,6 +719,8 @@ def plot_trajectory_tracks(
     time_frames: int = 48,
     export_phase_data: bool = True,
     export_time_data: bool = True,
+    include_star: bool = True,
+    figsize: Tuple[float, float] = (14, 8),
     save_dir: Optional[str] = None,
     dpi: int = 150,
 ) -> List[plt.Figure]:
@@ -763,6 +769,9 @@ def plot_trajectory_tracks(
         ("star", "Star", M_star_kg, R_star_km, narrowed.get("star")),
         ("planet", "Planet", M_planet_kg, R_planet_km, narrowed.get("planet")),
     ]
+
+    if not include_star:
+        bodies = [(t, l, m, r, n) for t, l, m, r, n in bodies if t != "star"]
 
     vstar_vec = envelope.vstar_vec if hasattr(envelope, "vstar_vec") else (0.0, envelope.vstar0)
     vstar_x, vstar_y = _star_velocity_components(vstar_vec)
@@ -1023,7 +1032,7 @@ def plot_trajectory_tracks(
         A_deg_edges = np.degrees(a_edges)
         A_deg_cent = np.degrees(a_cent)
 
-        fig_phase_e, ax_e = plt.subplots(figsize=(14, 8))
+        fig_phase_e, ax_e = plt.subplots(figsize=figsize)
 
         pcm = ax_e.pcolormesh(
             A_deg_edges, b_edges / 1e6, e_grid_plot,
@@ -1049,7 +1058,7 @@ def plot_trajectory_tracks(
         fig_phase_e.tight_layout()
         figs.append(fig_phase_e)
 
-        fig_phase_v, ax_v = plt.subplots(figsize=(14, 8))
+        fig_phase_v, ax_v = plt.subplots(figsize=figsize)
         heading = np.degrees(np.arctan2(vy_grid_plot, vx_grid_plot))
         pcm2 = ax_v.pcolormesh(
             A_deg_edges, b_edges / 1e6, heading,
@@ -1113,7 +1122,7 @@ def plot_trajectory_tracks(
             if tr.valid and len(tr.x_star) > 0:
                 trajs.append(tr)
 
-        fig, ax = plt.subplots(figsize=(14, 8))
+        fig, ax = plt.subplots(figsize=figsize)
         valid_e = np.array([t.orbital_energy for t in trajs if t.valid], dtype=float)
         if valid_e.size == 0:
             ax.text(

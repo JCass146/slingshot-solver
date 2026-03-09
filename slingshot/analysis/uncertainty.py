@@ -143,6 +143,8 @@ def run_parameter_posterior_mc(
         # Rebuild star–planet initial state with drawn parameters
         Y_sp0_draw = init_hot_jupiter_barycentric(
             m_star=m_star, m_p=m_p,
+            phase=cfg_draw.system.orbital_phase_rad,
+            prograde=cfg_draw.system.prograde,
             bulk_velocity_vx_kms=cfg_draw.system.bulk_velocity_vx_kms,
             bulk_velocity_vy_kms=cfg_draw.system.bulk_velocity_vy_kms,
         )

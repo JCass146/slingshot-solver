@@ -156,6 +156,9 @@ def phase_monte_carlo(cfg: FullConfig, verbose: bool = True) -> Dict[str, Any]:
         # Optional system bulk velocity (Galilean boost)
         bulk_velocity_vx_kms=cfg.system.bulk_velocity_vx_kms,
         bulk_velocity_vy_kms=cfg.system.bulk_velocity_vy_kms,
+        # Orbital geometry
+        orbital_phase_rad=cfg.system.orbital_phase_rad,
+        prograde=cfg.system.prograde,
         # Numerical
         rtol=cfg.numerical.rtol,
         atol=cfg.numerical.atol,
@@ -590,7 +593,8 @@ def phase_plots(
     m_star, m_p, R_p, R_star = _derive_physics(cfg)
     viz = cfg.visualization
     dpi = max(150, int(viz.figure_dpi))
-    landscape_size = (14.0, 8.0)
+    landscape_size = tuple(viz.figure_size_landscape)
+    square_size = tuple(viz.figure_size_square)
     saved: List[str] = []
 
     def _save(fig, name):
@@ -696,6 +700,7 @@ def phase_plots(
         _save(plot_multi_candidate_overlay(
             sols, analyses, m_star=m_star, m_p=m_p,
             R_star=R_star, R_p=R_p, top_n=top_n, save_dir=None, dpi=dpi,
+            figsize=square_size,
         ), "multi_candidate_overlay.png")
 
     # Baseline comparison plot (from baselines module)
@@ -710,6 +715,8 @@ def phase_plots(
                     m_star=m_star, m_p=m_p, R_p=R_p,
                     make_plots=True,
                     plot_save_dir=str(output_dir),
+                    figsize=landscape_size,
+                    dpi=dpi,
                 )
                 saved.append(str(output_dir / "baseline_comparison.png"))
                 if verbose:
@@ -789,44 +796,50 @@ def phase_plots(
             print(f"  ✗ 2-body heatmaps skipped: {e}")
 
     # Trajectory tracks (requires narrowed baselines)
-    try:
-        from .output.plotting_twobody import plot_trajectory_tracks
-        narrowed = baselines.get("narrowed") if baselines else None
-        if narrowed is not None and narrowed.get("envelope") is not None:
-            viz = cfg.visualization
-            norm_mode = getattr(viz, "trajectory_energy_norm_mode", "auto")
-            fixed_range = None
-            if norm_mode == "fixed":
-                vmin = getattr(viz, "trajectory_energy_vmin", None)
-                vmax = getattr(viz, "trajectory_energy_vmax", None)
-                if vmin is not None and vmax is not None and vmax > vmin:
-                    fixed_range = (float(vmin), float(vmax))
-            before_png = {p.name for p in output_dir.glob("*.png")}
-            figs_tt = plot_trajectory_tracks(
-                narrowed=narrowed,
-                sols_best=rerun.get("sols_best", []),
-                analyses_best=rerun.get("analyses_best", []),
-                cfg=cfg,
-                overlay_lines=getattr(viz, "trajectory_overlay_lines", True),
-                overlay_line_count=getattr(viz, "trajectory_overlay_line_count", 90),
-                gradient_mode=getattr(viz, "trajectory_gradient_mode", "hexbin"),
-                confidence_min_count=getattr(viz, "trajectory_confidence_min_count", 2),
-                fixed_energy_range=fixed_range,
-                hexbin_gridsize=getattr(viz, "trajectory_hexbin_gridsize", 150),
-                kde_sigma_bins=getattr(viz, "trajectory_kde_sigma_bins", 2.0),
-                time_frames=getattr(viz, "trajectory_time_frames", 48),
-                export_time_data=getattr(viz, "trajectory_time_export_npz", True),
-                save_dir=str(output_dir),
-                dpi=dpi,
-            )
-            for fig_tt in figs_tt:
-                plt.close(fig_tt)
-            _capture_new_pngs(before_png)
-            if verbose:
-                print(f"  ✓ trajectory_tracks ({len(figs_tt)} figs)")
-    except Exception as e:
+    if not getattr(cfg.visualization, "generate_trajectory_tracks", True):
         if verbose:
-            print(f"  ✗ trajectory_tracks skipped: {e}")
+            print("  Trajectory tracks disabled in config")
+    else:
+        try:
+            from .output.plotting_twobody import plot_trajectory_tracks
+            narrowed = baselines.get("narrowed") if baselines else None
+            if narrowed is not None and narrowed.get("envelope") is not None:
+                viz = cfg.visualization
+                norm_mode = getattr(viz, "trajectory_energy_norm_mode", "auto")
+                fixed_range = None
+                if norm_mode == "fixed":
+                    vmin = getattr(viz, "trajectory_energy_vmin", None)
+                    vmax = getattr(viz, "trajectory_energy_vmax", None)
+                    if vmin is not None and vmax is not None and vmax > vmin:
+                        fixed_range = (float(vmin), float(vmax))
+                before_png = {p.name for p in output_dir.glob("*.png")}
+                figs_tt = plot_trajectory_tracks(
+                    narrowed=narrowed,
+                    sols_best=rerun.get("sols_best", []),
+                    analyses_best=rerun.get("analyses_best", []),
+                    cfg=cfg,
+                    overlay_lines=getattr(viz, "trajectory_overlay_lines", True),
+                    overlay_line_count=getattr(viz, "trajectory_overlay_line_count", 90),
+                    gradient_mode=getattr(viz, "trajectory_gradient_mode", "hexbin"),
+                    confidence_min_count=getattr(viz, "trajectory_confidence_min_count", 2),
+                    fixed_energy_range=fixed_range,
+                    hexbin_gridsize=getattr(viz, "trajectory_hexbin_gridsize", 150),
+                    kde_sigma_bins=getattr(viz, "trajectory_kde_sigma_bins", 2.0),
+                    time_frames=getattr(viz, "trajectory_time_frames", 48),
+                    export_time_data=getattr(viz, "trajectory_time_export_npz", True),
+                    include_star=getattr(viz, "generate_star_trajectory_diagnostics", False),
+                    figsize=landscape_size,
+                    save_dir=str(output_dir),
+                    dpi=dpi,
+                )
+                for fig_tt in figs_tt:
+                    plt.close(fig_tt)
+                _capture_new_pngs(before_png)
+                if verbose:
+                    print(f"  ✓ trajectory_tracks ({len(figs_tt)} figs)")
+        except Exception as e:
+            if verbose:
+                print(f"  ✗ trajectory_tracks skipped: {e}")
 
     # ── Paper-quality multi-objective plots ──
     try:
@@ -894,6 +907,7 @@ def phase_animations(
         video_format=cfg.visualization.video_format,
         animate_trajectory=cfg.visualization.animate_trajectory,
         animate_phase_space=cfg.visualization.animate_phase_space,
+        dpi=cfg.visualization.animation_dpi,
     )
 
     if verbose:

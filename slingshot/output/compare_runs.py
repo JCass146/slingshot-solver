@@ -71,7 +71,7 @@ def _load_run_summary(run_dir: Path) -> Dict[str, Any]:
     config: Dict[str, Any] = {}
     if cfg_path.exists() and yaml is not None:
         with open(cfg_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f) or {}
+            config = yaml.load(f, Loader=yaml.FullLoader) or {}
     info["config"] = config
 
     sys_cfg = config.get("system", {})

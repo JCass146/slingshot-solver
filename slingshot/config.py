@@ -52,6 +52,8 @@ class SystemConfig(BaseModel):
             "a_planet_AU": 0.0896,
             "bulk_velocity_vx_kms": 0.0,
             "bulk_velocity_vy_kms": 0.0,
+            "orbital_phase_rad": 0.0,
+            "prograde": True,
         }
     })
     
@@ -72,6 +74,16 @@ class SystemConfig(BaseModel):
         ge=-2000.0,
         le=2000.0,
         description="System bulk velocity y-component in km/s (Galilean boost applied to star+planet initial velocities)",
+    )
+    orbital_phase_rad: float = Field(
+        default=0.0,
+        ge=-6.283185307,
+        le=6.283185307,
+        description="Planet orbital phase at t=0 in radians (0 = planet at +x relative to star)",
+    )
+    prograde: bool = Field(
+        default=True,
+        description="Orbital direction: True = counter-clockwise (prograde), False = clockwise (retrograde)",
     )
     
     @field_validator('a_planet_AU')
@@ -301,11 +313,15 @@ class VisualizationConfig(BaseModel):
             "animate_comparison": False,
             "figure_dpi": 150,
             "figure_format": "png",
+            "figure_size_landscape": [14.0, 8.0],
+            "figure_size_square": [11.0, 11.0],
+            "animation_dpi": 100,
             "generate_publication_dashboard": True,
             "generate_candidate_ranking_plot": True,
             "split_subplot_figures": True,
-            "generate_poincare_maps": True,
+            "generate_poincare_maps": False,
             "generate_oberth_maps": False,
+            "generate_star_trajectory_diagnostics": False,
             "heatmap_grid_resolution": 60,
             "heatmap_approach_angles_deg": [0.0, 45.0, 85.0],
             "top_n_overlay": 5,
@@ -334,6 +350,18 @@ class VisualizationConfig(BaseModel):
     
     figure_dpi: int = Field(default=150, ge=50, le=600, description="Figure resolution (DPI)")
     figure_format: Literal["png", "pdf", "jpg"] = Field(default="png", description="Diagnostic plot format")
+    figure_size_landscape: tuple[float, float] = Field(
+        default=(14.0, 8.0),
+        description="Standard landscape figure size (width, height) in inches for diagnostic plots",
+    )
+    figure_size_square: tuple[float, float] = Field(
+        default=(11.0, 11.0),
+        description="Standard square figure size (width, height) in inches for correlation/overlay plots",
+    )
+    animation_dpi: int = Field(
+        default=100, ge=50, le=300,
+        description="DPI for animation frames (typically lower than figure_dpi for file size)",
+    )
 
     # Publication diagnostics
     generate_publication_dashboard: bool = Field(
@@ -359,12 +387,20 @@ class VisualizationConfig(BaseModel):
         description="Deprecated toggle (scattering maps removed from generation pipeline)"
     )
     generate_poincare_maps: bool = Field(
-        default=True,
+        default=False,
         description="Generate Poincaré-style (b vs α_inf) parameter-space contourf maps"
     )
     generate_oberth_maps: bool = Field(
         default=False,
         description="Generate Oberth burn comparison maps (no-burn vs burn gain)"
+    )
+    generate_trajectory_tracks: bool = Field(
+        default=True,
+        description="Generate narrowed 2-body trajectory tracks and phase diagrams (plot_trajectory_tracks)"
+    )
+    generate_star_trajectory_diagnostics: bool = Field(
+        default=False,
+        description="Include star-body trajectory tracks and phase diagrams in plot_trajectory_tracks output"
     )
     generate_trajectory_heatmap: bool = Field(
         default=False,

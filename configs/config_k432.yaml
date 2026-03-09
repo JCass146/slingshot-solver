@@ -27,6 +27,8 @@ system:
   a_planet_AU: 0.0896
   bulk_velocity_vx_kms: 10.0
   bulk_velocity_vy_kms: 0.0
+  orbital_phase_rad: 0.0      # Planet at +x at t=0
+  prograde: true              # Counter-clockwise orbit
 
 sampling:
   mode: "barycentric"
@@ -76,7 +78,7 @@ numerical:
   star_min_clearance_Rstar: 3.0
 
 pipeline:
-  N_particles: 20000
+  N_particles: 1000
   t_mc_max_sec: 5e7
   t_best_max_sec: 5e7
   n_eval_best: 0
@@ -108,8 +110,20 @@ visualization:
   animate_comparison: false
   figure_dpi: 100
   figure_format: "png"
+  figure_size_landscape: [10, 8]
+  figure_size_square: [10, 10]
+  animation_dpi: 100
   generate_publication_dashboard: true
   generate_candidate_ranking_plot: true
+  split_subplot_figures: true
+  generate_poincare_maps: false
+  generate_trajectory_tracks: false
+  generate_star_trajectory_diagnostics: false
+  generate_oberth_maps: false
+  generate_trajectory_heatmap: false
+  heatmap_grid_resolution: 60
+  heatmap_approach_angles_deg: [0.0, 45.0, 85.0]
+  top_n_overlay: 5
   trajectory_gradient_mode: "kde"      # "line_overlay" | "hexbin" | "kde" | "time_video"
   trajectory_overlay_lines: false         # gradient-only testing (no trajectory line clutter)
   trajectory_overlay_line_count: 0
@@ -167,6 +181,12 @@ robustness:
   clearance_values: [1.5, 2.0, 3.0, 5.0]
   flyby_values: [0.3, 0.5, 0.8, 1.0, 3.0, 5.0]
   metric_names: ["delta_v", "delta_v_vec", "energy_from_planet_orbit"]
+
+tiering:
+  enabled: true
+  planet_dominated_threshold: 2.0
+  hybrid_threshold: 0.5
+  top_n_per_tier: 10
 
 metadata:
   case_name: "Kepler432_Interstellar_Slingshot"

@@ -13,6 +13,8 @@ system:
   a_planet_AU: 0.0896
   bulk_velocity_vx_kms: 0.0
   bulk_velocity_vy_kms: 0.0
+  orbital_phase_rad: 0.0      # Planet at +x at t=0
+  prograde: true              # Counter-clockwise orbit
 
 sampling:
   mode: "barycentric"
@@ -23,6 +25,13 @@ sampling:
   angle_in_min_deg: -90.0
   angle_in_max_deg: 90.0
   r_init_AU: 3.0
+
+  # Planet-frame mode parameters (alternative)
+  r_min_factor: 20.0
+  r_max_factor: 500.0
+  v_rel_min_kms: 12.0
+  v_rel_max_kms: 80.0
+
   bary_unbound_requirement: "both"
 
 numerical:
@@ -69,13 +78,31 @@ visualization:
   animate_comparison: false
   figure_dpi: 120
   figure_format: "png"
+  figure_size_landscape: [14.0, 8.0]
+  figure_size_square: [11.0, 11.0]
+  animation_dpi: 100
   generate_publication_dashboard: true
   generate_candidate_ranking_plot: true
-  generate_poincare_maps: true
+  generate_poincare_maps: false
+  generate_trajectory_tracks: true
+  generate_star_trajectory_diagnostics: false
   generate_oberth_maps: false
+  split_subplot_figures: true
+  generate_trajectory_heatmap: false
   heatmap_grid_resolution: 60
   heatmap_approach_angles_deg: [0.0, 45.0, 85.0]
   top_n_overlay: 5
+  trajectory_gradient_mode: "hexbin"
+  trajectory_overlay_lines: true
+  trajectory_overlay_line_count: 90
+  trajectory_confidence_min_count: 2
+  trajectory_energy_norm_mode: "auto"
+  trajectory_energy_vmin: null
+  trajectory_energy_vmax: null
+  trajectory_hexbin_gridsize: 150
+  trajectory_kde_sigma_bins: 2.0
+  trajectory_time_frames: 48
+  trajectory_time_export_npz: true
 
 two_body:
   scattering_body: "both"
@@ -101,3 +128,26 @@ metadata:
   case_name: "PubMethod_Pareto"
   objective: "Non-dominated tradeoff sampling across scalar/vector/intrinsic metrics"
   notes: "Use identical settings across single/pareto/weighted for fair mode-to-mode comparison."
+
+uncertainty:
+  enabled: false
+  n_draws: 50
+  seed: null
+  bootstrap_n_resample: 200
+  parameters: {}
+
+robustness:
+  enabled: false
+  seed: null
+  convergence_N: [500, 1000, 2000, 4000, 8000]
+  softening_values: [0.0, 10.0, 50.0, 100.0, 500.0, 1000.0]
+  tolerance_values: [1.0e-10, 1.0e-11, 1.0e-12, 1.0e-13]
+  clearance_values: [1.5, 2.0, 3.0, 5.0]
+  flyby_values: [0.3, 0.5, 0.8, 1.0, 3.0, 5.0]
+  metric_names: ["delta_v", "delta_v_vec", "energy_from_planet_orbit"]
+
+tiering:
+  enabled: true
+  planet_dominated_threshold: 2.0
+  hybrid_threshold: 0.5
+  top_n_per_tier: 10
