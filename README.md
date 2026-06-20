@@ -1,10 +1,69 @@
-﻿# Slingshot Solver v3.0
+# Slingshot Solver
 
-**Production-grade Python package for studying gravitational slingshot (gravity-assist) dynamics in restricted 3-body systems, with a focus on interstellar-velocity encounters.**
+Slingshot Solver is a Python research project for studying planar gravitational
+scattering in a star-planet system. The repository now contains two versioned
+workflows:
 
-Layered architecture with **Core** (dynamics, 2-body math), **Analysis** (Monte Carlo, trajectory metrics), and **Output** (plotting, animation, reporting) layers. Star + Hot Jupiter + Satellite orbital mechanics with Monte Carlo simulations, 2-body baselines, star-proximity filtering, planet-frame diagnostics, auto-generated reports, video animation, and full test suite. Installable package with CLI entry point.
+- **v4 research core** — the current scientific workflow for estimating
+  effective planar encounter widths as a function of asymptotic speed.
+- **v3 legacy pipeline** — the earlier exploratory Monte Carlo, plotting,
+  animation, and candidate-ranking workflow.
 
-**Canonical unit system**: km-kg-s throughout. Energies in km²/s² (≡ MJ/kg).
+The v4 core corrects the orbital initialization, asymptotic encounter proposal,
+energy definitions, event handling, statistical estimand, and validation
+strategy. Historical v3 runs remain readable, but they are not scientifically
+comparable with v4 results and are excluded from v4 aggregates.
+
+**Units:** km, kg, and s throughout. Specific energies are reported in
+km²/s², equivalent to MJ/kg.
+
+---
+
+## Scientific Scope
+
+The primary v4 result is an **effective planar encounter width**:
+
+\[
+W\left(\Delta\epsilon / v_c^2 > q \mid v_\infty\right)
+= 2b_{\max}\frac{N_{\mathrm{event}}}{N},
+\]
+
+where:
+
+- \(v_\infty\) is the incoming asymptotic speed;
+- \(b_{\max}\) defines the sampled signed-impact interval;
+- \(\Delta\epsilon\) is the test particle's specific-energy change in the
+  binary center-of-mass frame;
+- \(v_c^2 = G(M_\star + M_p)/a\) sets the dimensionless energy scale.
+
+This quantity is a one-dimensional width under a declared planar sampling
+proposal. It is **not** a three-dimensional area cross-section, astrophysical
+event probability, or occurrence rate. Those require a future 3D isotropic
+sampling model.
+
+---
+
+## What v4 Adds
+
+- Eccentric Keplerian binary initialization from semi-major axis,
+  eccentricity, mean anomaly, argument of periapsis, masses, and direction.
+- Proper inbound hyperbolic states defined by \(v_\infty\), signed impact
+  parameter, incoming direction, and a finite boundary radius.
+- Uniform sampling in signed impact parameter, incoming direction, and binary
+  mean anomaly, with mean anomaly corresponding to uniform observation time.
+- Center-of-mass scientific metrics that are invariant under Galilean boosts.
+- Root-event detection for stellar collision, planetary collision, outbound
+  escape, and periapsis.
+- Separate work integrals for the moving stellar and planetary potentials,
+  with work-energy closure checks.
+- Wilson confidence intervals, collision widths, gain quantiles, and
+  impact-boundary tail checks.
+- DOP853 campaign integration, Radau cross-checks, and optional REBOUND IAS15
+  validation.
+- Versioned configurations, manifests, observational provenance, solver
+  diagnostics, and compact per-sample records.
+- Separate Kepler-432 models based on Quinn et al. and Ortiz et al., treated as
+  discrete observational-model uncertainty rather than pooled measurements.
 
 ---
 
@@ -12,530 +71,347 @@ Layered architecture with **Core** (dynamics, 2-body math), **Analysis** (Monte 
 
 ### Install
 
+Python 3.9 or newer is required.
+
 ```bash
+git clone <repository-url>
 cd slingshot-solver
-pip install -e .
+python -m pip install -e .
 ```
 
-Or install dependencies only:
+Install development tools for testing:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -e ".[dev]"
 ```
 
-### CLI Entry Point
-
-After install, use the `slingshot` command:
+Optional independent-integrator validation:
 
 ```bash
-slingshot configs/config_kepler432_case.yaml
-slingshot compare results/run_a results/run_b
-slingshot --help
+python -m pip install rebound
 ```
 
-Or call directly via `python run.py`.
+### Validate a v4 Preset
 
-This runs the full 8-phase pipeline and produces a timestamped results directory:
-
-```
-results/results_Kepler-432_YYYYMMDD_HHMMSS/
-├── config.yaml          # Frozen copy of the config used
-├── summary.csv          # All candidates ranked by ΔV
-├── results.pkl          # Full MC data + rerun solutions (pickle)
-├── REPORT.md            # Auto-generated analysis report
-├── *.png                # All diagnostic plots
-└── frames/              # Animation frames (if enabled)
-```
-
-#### CLI Options
+Run the fast deterministic checks:
 
 ```bash
-python run.py configs/config.yaml --output-dir results/my_run   # custom output dir
-python run.py configs/config.yaml --skip-plots                   # data only, no figures
-python run.py configs/config.yaml --skip-animations              # skip video render
-python run.py configs/config.yaml --phases mc,select,rerun       # run only specific phases
-python run.py configs/config.yaml --quiet                        # minimal console output
+python run_v4.py validate configs/v4_kepler432_quinn.yaml
 ```
 
-### Compare Runs
+Run the complete publication-gate set:
 
 ```bash
-python run.py compare results/run_a results/run_b results/run_c
+python validate_v4.py configs/v4_kepler432_quinn.yaml
 ```
 
-Prints a side-by-side comparison table of system parameters, particle counts, and best ΔV from each run.
+Add `--json` for machine-readable validation output:
 
-### Run Individual Phases (Python)
-
-Each pipeline phase is independently callable for debugging:
-
-```python
-from slingshot.config import load_config
-from slingshot.pipeline import phase_monte_carlo, phase_select, phase_rerun
-
-cfg = load_config('configs/config_kepler432_case.yaml')
-mc = phase_monte_carlo(cfg, verbose=True)
-top_idx = phase_select(cfg, mc, verbose=True)
-rerun = phase_rerun(cfg, mc, top_idx, verbose=True)
+```bash
+python validate_v4.py configs/v4_kepler432_quinn.yaml --json
 ```
 
-### Interactive Notebook
+REBOUND IAS15 is optional. If it is not installed, that gate is reported as
+skipped rather than treated as a required failure.
 
-| Notebook | Purpose |
-|----------|---------|
-| `ThreeBodySolver_v2.ipynb` | 3-body Monte Carlo exploration, analysis, and visualisation |
+### Run a Small Pilot
+
+Start with a small campaign before launching the full preset:
+
+```bash
+python run_v4.py run configs/v4_kepler432_quinn.yaml \
+  --samples-per-bin 100 \
+  --seeds 42 \
+  --output-dir results/v4_quinn_pilot
+```
+
+The `--seeds` option accepts comma-separated integers:
+
+```bash
+python run_v4.py run configs/v4_kepler432_quinn.yaml \
+  --samples-per-bin 100 \
+  --seeds 42,43,44
+```
+
+### Run the Configured Campaign
+
+```bash
+python run_v4.py run configs/v4_kepler432_quinn.yaml
+```
+
+The Quinn and Ortiz presets each default to seven speed bins, five independent
+seeds, and 2,000 trajectories per seed: 70,000 trajectories per observational
+model.
 
 ---
 
-## Architecture
+## v4 Presets
 
-**Layered package structure** (v3.0 restructure):
+| Preset | Purpose |
+|---|---|
+| `configs/v4_dimensionless_reference.yaml` | General reference system for controlled tests and method development |
+| `configs/v4_kepler432_quinn.yaml` | Kepler-432 parameters from Quinn et al. |
+| `configs/v4_kepler432_ortiz.yaml` | Kepler-432 parameters from Ortiz et al. |
 
-```
-slingshot/
-├── __init__.py                     # Top-level re-exports (72 symbols)
-├── config.py                       # Pydantic models + YAML loader
-├── constants.py                    # G_KM, M_SUN, M_JUP, R_JUP, R_SUN, AU_KM
-├── console.py                      # Pretty-print utilities
-├── cli.py                          # CLI entry point (argparse)
-├── pipeline.py                     # 8-phase orchestrator
-│
-├── core/                           # Core dynamics & mathematics
-│   ├── __init__.py
-│   ├── dynamics.py                 # 3-body ODE + RK integration
-│   ├── twobody.py                  # TwoBodyEncounter grid-scan class
-│   ├── twobody_scatter.py          # Closed-form hyperbolic solver (ground truth)
-│   └── sampling.py                 # Initial condition generation
-│
-├── analysis/                       # Analysis workflows & metrics
-│   ├── __init__.py
-│   ├── trajectory.py               # Trajectory analysis + EncounterGeometry
-│   ├── monte_carlo.py              # Monte Carlo sweep + candidate selection
-│   ├── baselines.py                # 2-body hyperbola + monopole baselines
-│   ├── narrowed_baselines.py       # Post-hoc narrowed 2-body comparisons
-│   └── comparison.py               # 2-body vs 3-body cross-comparison
-│
-├── output/                         # Output (plots, reports, animation)
-│   ├── __init__.py
-│   ├── plotting.py                 # 3-body diagnostic plots (9 functions)
-│   ├── plotting_twobody.py         # 2-body heatmaps & encounter maps (5 functions)
-│   ├── animation.py                # Video rendering (trajectory + phase-space)
-│   ├── report.py                   # Auto-generated REPORT.md
-│   └── compare_runs.py             # Cross-run comparison tables
+The observational presets record their citation, parameter source, central
+values, and uncertainties in the configuration and run manifest.
 
-Workspace:
-├── configs/                        # YAML configuration files (5 presets + custom)
-├── results/                        # All outputs (gitignored)
-│   └── results_Kepler-432_*/       # Per-run dirs (config, plots, data, REPORT.md)
-├── tests/                          # Test suite (29 tests, all passing)
-├── pyproject.toml                  # Modern packaging (setuptools, entry point)
-├── requirements.txt                # Dependencies
-├── run.py                          # Thin wrapper → slingshot.cli:main
-├── ThreeBodySolver.ipynb           # Interactive notebook (v3.0 imports)
-└── README.md
-```
-
-### Data Flow
-
-```
-┌───────────────────────────────────────────────────────────┐
-│              configs/config_kepler432_case.yaml            │
-│         (Single source of truth — Pydantic schema)        │
-└─────────────────────┬─────────────────────────────────────┘
-                      │
-                      ▼
-              python run.py config.yaml
-                      │
-        ┌─────────────┼─────────────────────────┐
-        ▼             ▼                         ▼
-   Phase 1: MC    Phase 5: Baselines       Phase 6: Plots
-   monte_carlo    baselines.py             plotting.py
-   sampling.py    narrowed_baselines.py    plotting_twobody.py
-        │         comparison.py                 │
-        ▼             │                         │
-   Phase 2: Select    │                    Phase 7: Animations
-   Phase 3: Rerun     │                    animation.py
-   Phase 4: Best      │                         │
-        │             │                         │
-        └─────────────┴─────────────────────────┘
-                      │
-                      ▼
-              Phase 8: Save + Report
-              report.py → REPORT.md
-              results/results_Kepler-432_YYYYMMDD_HHMMSS/
-```
+Quinn and Ortiz results should be compared side by side. They should not be
+combined into a single Gaussian posterior without a separate hierarchical
+model that justifies doing so.
 
 ---
 
-## Unit System
+## v4 Configuration
 
-All modules use **km-kg-s** consistently:
-
-| Quantity | Unit | Note |
-|----------|------|------|
-| Distance | km | |
-| Velocity | km/s | |
-| Mass | kg | |
-| Time | s | |
-| Energy | km²/s² | ≡ MJ/kg (since 1 km²/s² = 10⁶ J/kg) |
-| G | 6.67430 × 10⁻²⁰ km³ kg⁻¹ s⁻² | `slingshot.constants.G_KM` |
-| μ | km³/s² | G × M |
-
-Constants are defined **once** in `slingshot/constants.py` and imported by every module.
-
----
-
-## Configuration
-
-Configs live in `configs/`. Edit or create new ones:
+Every v4 configuration declares `schema_version: 4` and uses explicit
+scientific sections:
 
 ```yaml
-system:
-  name: Kepler-432
-  M_star_Msun: 1.19
-  R_star_Rsun: 4.06
-  M_planet_Mjup: 5.2
-  R_planet_Rjup: 1.155
-  a_planet_AU: 0.0896
-  bulk_velocity_vx_kms: 0.0
-  bulk_velocity_vy_kms: 0.0
+schema_version: 4
 
-sampling:
-  mode: barycentric
-  v_mag_min_kms: 10.0
-  v_mag_max_kms: 120.0
-  impact_param_min_AU: 0.5
-  impact_param_max_AU: 3.0
+system:
+  name: Kepler-432 — Quinn et al.
+  star_mass_msun: 1.32
+  star_radius_rsun: 4.06
+  planet_mass_mjup: 5.41
+  planet_radius_rjup: 1.145
+
+orbit:
+  model: keplerian
+  semi_major_axis_au: 0.301
+  eccentricity: 0.5134
+  mean_anomaly_rad: 0.0
+  argument_periapsis_rad: 0.0
+  prograde: true
+
+asymptotic_sampling:
+  v_inf_kms: [10, 20, 30, 40, 60, 80, 120]
+  b_max_au: 1.0
+  boundary_radius_au: 5.0
+  samples_per_bin: 2000
+  seeds: [42, 43, 44, 45, 46]
+
+planar_width:
+  dimensionless_energy_thresholds: [0, 0.01, 0.03, 0.1, 0.3, 1.0]
+  confidence_level: 0.95
+  tail_fraction: 0.10
+  max_tail_event_fraction: 0.01
 
 numerical:
+  method: DOP853
   rtol: 1.0e-10
   atol: 1.0e-10
-  star_min_clearance_Rstar: 1.0   # reject star-penetrating orbits
-
-pipeline:
-  N_particles: 3000
-  t_mc_max_sec: 1.0e7
-  select_mode: single
-  select_metric: bary_delta_v_pct
-  select_sign: maximize
-  selection_objectives:
-    - metric: bary_delta_v
-      sign: maximize
-      weight: 1.0
-    - metric: delta_v_vec
-      sign: maximize
-      weight: 1.0
-    - metric: energy_from_planet_orbit
-      sign: maximize
-      weight: 1.0
-  weighted_normalization: minmax
-  n_parallel: null
+  softening_km: 0.0
 ```
 
-Pipeline consistency note: 2-body diagnostic maps generated by `run.py`/`run_pipeline` auto-sync the full star velocity vector from the 3-body run (narrowed-envelope value when available; otherwise initial star barycentric velocity).
+Newtonian gravity with `softening_km: 0` is the scientific default. Softened
+runs are diagnostic and should not be presented as primary results.
 
-Selection modes:
-- `single`: one metric (`select_metric`, `select_sign`)
-- `pareto`: non-dominated sorting over `selection_objectives`
-- `weighted`: normalized weighted score over `selection_objectives`
+---
 
-Load in Python:
+## Methodology
 
-```python
-from slingshot.config import load_config
-cfg = load_config('configs/config_kepler432_case.yaml')
+### 1. Binary State
+
+The star and planet are initialized in barycentric coordinates from the
+configured Keplerian elements. Scientific quantities are measured in the
+binary center-of-mass frame. A configured bulk velocity changes presentation
+coordinates only.
+
+### 2. Asymptotic Proposal
+
+For each fixed \(v_\infty\) bin, v4 samples:
+
+- signed impact parameter uniformly over \([-b_{\max}, b_{\max}]\);
+- incoming direction uniformly over \([0, 2\pi)\);
+- binary mean anomaly uniformly over \([0, 2\pi)\).
+
+The asymptotic energy and angular momentum are mapped analytically onto a
+finite inbound boundary using the total-mass monopole.
+
+### 3. Integration and Outcomes
+
+Campaigns use SciPy's DOP853 integrator. Root events classify:
+
+- outbound escape;
+- stellar collision;
+- planetary collision;
+- close approach and periapsis.
+
+Radau reruns selected reference trajectories as an independent internal
+cross-check. REBOUND IAS15 can provide an additional optional comparison.
+
+### 4. Scientific Metrics
+
+The primary gain metric is:
+
+```text
+delta_specific_energy_com = epsilon_out - epsilon_in
+```
+
+Additional outputs include:
+
+- `delta_v_inf`;
+- `delta_speed_com`;
+- deflection angle;
+- stellar and planetary periapsis;
+- collision outcome;
+- `work_star` and `work_planet`;
+- continuous stellar and planetary work fractions;
+- solver success, status, evaluations, and integration time.
+
+`turning_quadratic = 0.5 * |v_out - v_in|²` is retained only as a turning
+diagnostic. It is not interpreted as an energy gain.
+
+### 5. Statistical Summary
+
+For every speed and dimensionless energy threshold, v4 reports:
+
+- effective planar width;
+- Wilson confidence interval;
+- event count and effective sample size;
+- median escaped gain and upper gain quantiles;
+- collision width;
+- outer-impact tail contribution.
+
+If the outer 10% of sampled impact parameters contributes materially to the
+event count, the boundary-tail gate fails and `b_max` should be increased.
+Sample maxima are not reported as converged physical limits.
+
+---
+
+## Run Artifacts
+
+Each v4 campaign writes a compact, reproducible directory:
+
+```text
+results/v4_<case>_<timestamp>/
+├── config.yaml
+├── samples.csv
+├── width_summary.csv
+├── manifest.json
+└── REPORT.md
+```
+
+| Artifact | Contents |
+|---|---|
+| `config.yaml` | Frozen schema-v4 configuration used by the run |
+| `samples.csv` | Proposal variables, outcomes, metrics, work terms, and solver diagnostics |
+| `width_summary.csv` | Per-seed and combined widths, confidence intervals, quantiles, and tail checks |
+| `manifest.json` | Schema, package version, Git commit, seeds, speed bins, integrator, provenance, artifacts, and validation status |
+| `REPORT.md` | Interpretation-safe summary of widths, metrics, limitations, and validation |
+
+The compact v4 format intentionally does not retain every coarse ODE
+trajectory. Reproducibility comes from the frozen configuration, proposal
+variables, seed, code revision, and numerical metadata.
+
+---
+
+## Validation
+
+The v4 validation system checks:
+
+- recovery of the configured binary semi-major axis and eccentricity;
+- central-force energy and angular-momentum conservation;
+- Newtonian zero-softening configuration;
+- circular restricted-problem Jacobi conservation;
+- Galilean invariance of center-of-mass metrics;
+- moving-potential work-energy closure;
+- DOP853 and Radau agreement;
+- optional REBOUND IAS15 agreement;
+- campaign-level work closure and impact-boundary tails.
+
+Run the full test suite with:
+
+```bash
+pytest -q
+```
+
+Current validated baseline: **122 passed, 1 skipped**. The skip corresponds to
+an optional environment-dependent path. Remaining warnings come from legacy
+v3 NumPy two-dimensional cross-product calls, not the v4 core.
+
+---
+
+## Project Structure
+
+```text
+slingshot-solver/
+├── slingshot/
+│   ├── v4/
+│   │   ├── config.py       # Schema-v4 configuration and serialization
+│   │   ├── dynamics.py     # Keplerian binary and event-driven integration
+│   │   ├── sampling.py     # Asymptotic hyperbolic proposal
+│   │   ├── metrics.py      # COM metrics and work accounting
+│   │   ├── statistics.py   # Planar widths and Wilson intervals
+│   │   ├── validation.py   # Fast deterministic checks
+│   │   ├── gates.py        # Publication validation gates
+│   │   ├── campaign.py     # Campaign runner and artifacts
+│   │   ├── report.py       # v4 scientific report
+│   │   └── runs.py         # Version-aware run discovery
+│   ├── core/               # Legacy v3 dynamics and two-body tools
+│   ├── analysis/           # Legacy v3 Monte Carlo and diagnostics
+│   └── output/             # Legacy v3 plots, reports, and animation
+├── configs/
+├── tests/
+├── run_v4.py
+├── validate_v4.py
+├── run.py                  # Legacy v3 CLI wrapper
+└── V4_README.md            # Focused v4 methodology notes
 ```
 
 ---
 
-## Core Workflows
+## Legacy v3 Workflow
 
-### 1. Full Pipeline (One Command)
+The v3 pipeline remains available for historical analysis, visualization, and
+exploratory candidate studies:
 
 ```bash
-# Installation method 1: editable install
 slingshot configs/config_kepler432_case.yaml
+```
 
-# Installation method 2: via Python
+or:
+
+```bash
 python run.py configs/config_kepler432_case.yaml
 ```
 
-Runs all 8 phases: MC → Select → Rerun → Best → Baselines → Plots → Animations → Save. Produces timestamped `results/results_Kepler-432_YYYYMMDD_HHMMSS/` with `REPORT.md`, diagnostic plots, and pickled data.
-
-### 2. Individual Phases (Python)
-
-```python
-from slingshot.config import load_config
-from slingshot.pipeline import (
-    phase_monte_carlo, phase_select, phase_rerun,
-    phase_best_selection, phase_baselines, phase_plots,
-)
-
-cfg = load_config('configs/config_kepler432_case.yaml')
-mc = phase_monte_carlo(cfg, verbose=True)
-top_idx = phase_select(cfg, mc, verbose=True)
-rerun = phase_rerun(cfg, mc, top_idx, verbose=True)
-best = phase_best_selection(
-    rerun["analyses"], top_idx, rerun["solutions"], verbose=True
-)
-baselines = phase_baselines(cfg, rerun["analyses"], best["best_vec_ana"], verbose=True)
-```
-
-### 3. Two-Body Heatmaps
-
-Config-driven 2-body encounter visualisations via the **Analysis** layer:
-
-```python
-from slingshot.analysis.narrowed_baselines import compute_narrowed_baselines
-from slingshot.output.plotting_twobody import plot_trajectory_tracks
-
-narrowed = compute_narrowed_baselines(
-    analyses_top=[...],
-    cfg=cfg,
-    padding_factor=1.5,
-)
-
-figs = plot_trajectory_tracks(
-    narrowed=narrowed,
-    sols_best=sols,
-    analyses_best=analyses,
-    cfg=cfg,
-)
-```
-
-Auto-generated by the pipeline when `visualization.render_2body_tracks: true`.
-
-### 4. Cross-Run Comparison
-
-```python
-from slingshot.output.compare_runs import compare_runs
-
-compare_runs(["results/run_a", "results/run_b"])
-```
-
-Or CLI:
+It can still generate ranked candidates, diagnostic plots, animations,
+pickled trajectory data, and run comparisons:
 
 ```bash
 slingshot compare results/run_a results/run_b
 ```
 
-### 5. Animations
+Existing v3 directories are recognized by
+`slingshot.v4.runs.classify_run()` and marked
+`legacy_science_model: true`. `discover_v4_runs()` returns only eligible v4
+runs, preventing accidental aggregation across incompatible scientific
+models.
 
-```python
-from slingshot.output.animation import generate_all_animations
-
-animations = generate_all_animations(
-    best_sol,
-    output_dir="./results/frames",
-    video_fps=30,
-    video_format="mp4",
-)
-```
+Use v3 outputs as legacy exploratory artifacts. New scientific conclusions
+about encounter gain versus asymptotic speed should use the v4 workflow.
 
 ---
 
-## API Reference
+## Known Limits and Roadmap
 
-### Top-Level Imports
-
-```python
-# All public symbols re-exported from slingshot (72 symbols)
-from slingshot import (
-    # Constants
-    G_KM, M_SUN, M_JUP, R_JUP, R_SUN, AU_KM,
-    # Config
-    load_config, save_config, FullConfig,
-    # Core dynamics
-    simulate_3body, init_hot_jupiter_barycentric,
-    # Analysis
-    analyze_trajectory, run_monte_carlo,
-    # Plotting & output
-    plot_mc_summary, generate_all_animations,
-    # Pipeline orchestration
-    run_pipeline,
-    # + 50+ more...
-)
-```
-
-See `slingshot/__init__.py` for the complete list.
-
-### Constants (`slingshot.constants`)
-
-| Symbol | Value | Description |
-|--------|-------|-------------|
-| `G_KM` | 6.67430e-20 | Gravitational constant [km³ kg⁻¹ s⁻²] |
-| `M_SUN` | 1.98847e30 | Solar mass [kg] |
-| `M_JUP` | 1.898e27 | Jupiter mass [kg] |
-| `R_JUP` | 71492.0 | Jupiter radius [km] |
-| `R_SUN` | 696000.0 | Solar radius [km] |
-| `AU_KM` | 1.495978707e8 | Astronomical unit [km] |
-
-Helpers: `mu_star(M_Msun)`, `mu_planet(M_Mjup)`, `au_to_km(au)`, `km_to_au(km)`
-
-### Core Layer (`slingshot.core`)
-
-**Dynamics** (`slingshot.core.dynamics`):
-- `simulate_3body(Y0, t_span, m_star, m_p, n_eval, rtol, atol)` — RK45 integration with escape handling
-- `init_hot_jupiter_barycentric(a_km, m_star, m_p, phase, prograde)` — barycentric IC generation
-
-**Two-Body** (`slingshot.core.twobody`):
-- `TwoBodyEncounter(M_body_kg, G, label)` — encounter manager
-- `TwoBodyEncounter.scan_parameter_space(...)` — grid scan over b × angle
-- `TwoBodyEncounter.get_energy_statistics(energies)` — distribution stats
-
-**Two-Body Scatter** (`slingshot.core.twobody_scatter`):
-- `gravity_assist_oberth(v_vec, dv, p_r, mu)` — closed-form hyperbolic solver (ground truth)
-- `ga_no_burn(v_mag, b, mu)`, `ga_oberth(v_mag, b, dv, mu)` — utility functions
-
-**Sampling** (`slingshot.core.sampling`):
-- `sample_ic_uniform(...)` — uniform parameter space sampling
-- `calc_escape_radius(...)`, `calc_min_hill(...)` — geometry helpers
-
-### Analysis Layer (`slingshot.analysis`)
-
-**Trajectory** (`slingshot.analysis.trajectory`):
-- `analyze_trajectory(sol, frame, m_star, m_p, R_p, ...)` — unified trajectory analysis
-- `extract_encounter_states(sol, m_p, R_p, ...)` → `EncounterGeometry` dataclass
-- Data classes: `EncounterGeometry` (encounter metrics with reason codes)
-
-**Monte Carlo** (`slingshot.analysis.monte_carlo`):
-- `run_monte_carlo(N, t_span, m_star, m_p, frame, ...)` — full MC sweep with parallelization
-- `select_top_indices(mc, metric, sign, top_frac, min_top)` — flexible candidate ranking
-
-**Baselines** (`slingshot.analysis.baselines`):
-- `compare_3body_with_baselines(sol, enc, m_star, m_p, R_p, ...)` — 2-body vs 3-body comparison
-
-**Narrowed Baselines** (`slingshot.analysis.narrowed_baselines`):
-- `compute_narrowed_baselines(analyses_top, cfg, padding_factor, ...)` — velocity-matched envelope sweeps
-- Data classes: `BaselineResult`, `EnvelopeSummary`
-
-**Comparison** (`slingshot.analysis.comparison`):
-- `compare_2body_3body(energy_2body_star, energy_2body_planet, energy_3body, ...)` → dict
-- `format_energy(value)` → readable string
-- `print_comparison(comp)` → formatted output
-
-### Output Layer (`slingshot.output`)
-
-**Plotting 3-Body** (`slingshot.output.plotting`):
-- `plot_mc_summary(mc)`, `plot_best_candidate_with_bodies(sol, ana, ...)`
-- `plot_velocity_phase_space(sol)`, `plot_star_proximity_distribution(mc, ...)`
-- `plot_planet_frame_diagnostics(analyses, ...)`, `plot_multi_candidate_overlay(sols, ...)`
-- `plot_rejection_breakdown(mc)`, `plot_parameter_correlations(mc)`, `plot_energy_cdf(mc)`
-
-**Plotting 2-Body** (`slingshot.output.plotting_twobody`):
-- `plot_poincare_heatmaps(M_body_kg, v_inf_kms, ...)` — multi-panel Poincaré maps
-- `plot_scattering_maps(M_body_kg, v_approach_kms, ...)` — scattering angle maps
-- `plot_encounter_2d_cartesian(M_body_kg, ...)` — Cartesian encounter grids
-- `plot_encounter_2d_trajectories(M_body_kg, ...)` — multi-scenario comparison
-- `plot_trajectory_tracks(narrowed, sols_best, ...)` — 2B vs 3B overlay trajectories
-
-**Animation** (`slingshot.output.animation`):
-- `animate_trajectory(sol, ...)`, `animate_phase_space(sol, ...)`
-- `generate_all_animations(sol, ...)` — orchestrate all video rendering
-
-**Report** (`slingshot.output.report`):
-- `generate_run_report(output_dir, cfg, mc, analyses, best, ...)` → write REPORT.md
-
-**Compare Runs** (`slingshot.output.compare_runs`):
-- `compare_runs(run_dirs)` — load and cross-compare multiple results
-- `print_comparison(run_dirs)` — formatted comparison table
-
-### Pipeline & Configuration
-
-**Pipeline** (`slingshot.pipeline`):
-- `run_pipeline(config_path, output_dir, phases, skip_plots, verbose)` — full 8-phase orchestrator
-- Phase functions: `phase_monte_carlo`, `phase_select`, `phase_rerun`, `phase_best_selection`, `phase_baselines`, `phase_plots`, `phase_animations`, `phase_save`
-
-**Configuration** (`slingshot.config`):
-- `load_config(path)` → `FullConfig` (Pydantic v2 validated)
-- `save_config(cfg, path)` — export to YAML
-- Models: `SystemConfig`, `SamplingConfig`, `NumericalConfig`, `SelectionObjectiveConfig`, `PipelineConfig`, `VisualizationConfig`, `TwoBodyConfig`, `FullConfig`
-
-**CLI** (`slingshot.cli`):
-- `main()` — entry point for `slingshot` command
-- Supports: `run`, `compare` subcommands with argparse
-
----
-
-## Performance
-
-**Typical runtime** (Kepler-432, N = 3000):
-
-| Mode | Duration | Notes |
-|------|----------|-------|
-| 2-body scan (150 × 200) | 30–60 s | Single-threaded |
-| 3-body MC (serial) | 2–3 hours | Single-threaded |
-| 3-body MC (4 cores) | 40–50 min | `n_parallel: 4` |
-
----
-
-## Troubleshooting
-
-**ImportError: No module named 'slingshot'**
-
-```bash
-pip install -r requirements.txt
-# or ensure you run from the workspace root
-```
-
-**ValidationError loading config** — Check YAML syntax and field names; see `slingshot/config.py` for the Pydantic schema.
-
-**Old SI units (m-kg-s)** — All code is now km-kg-s. If values are 10⁶× too large, you may be using an outdated config. Energy: 1 km²/s² = 1 MJ/kg. Old J/kg results should be divided by 10⁶.
-
-**Parallelisation not working** — Set `pipeline.n_parallel` to an integer > 1.
-
-**Animation generation fails** — Ensure `ffmpeg` is installed (`ffmpeg -version`). Try GIF format as fallback.
-
----
-
-## Requirements
-
-```
-numpy
-scipy
-matplotlib
-pyyaml
-pydantic
-```
-
-Optional: `ffmpeg-python` (video), `pandas` (tables), `pytest` (testing)
-
----
-
-## v1 → v3.0 Improvements
-
-| Feature | v1 | v2.4 | v3.0 |
-|---------|-----|------|------|
-| **Structure** | monolithic notebook | 17 flat modules + CLI | 3 layers (core/analysis/output) + packaging |
-| **Packaging** | none | importable only | pip-installable + CLI entry point |
-| **Unit system** | mixed | km-kg-s everywhere | km-kg-s everywhere |
-| **Constants** | hardcoded (9+ places) | `constants.py` | `constants.py` + re-exports |
-| **Architecture** | flat | modules | layered (core / analysis / output) |
-| **Config** | hardcoded | YAML + Pydantic | YAML + Pydantic v2 |
-| **Workflow** | manual cells | `python run.py` | `slingshot` CLI command |
-| **2-body baselines** | star only | star+planet | narrowed envelopes (velocity-matched) |
-| **Star filtering** | none | configurable R★ | configurable + reproducible |
-| **Planet-frame** | none | EncounterGeometry | EncounterGeometry + v3.0 fields |
-| **Diagnostic plots** | 3 | 14 (9+5) | 14 + trajectory tracks overlay |
-| **Output org** | scattered | `results/` per-run | `results/` + proper gitignore |
-| **Reporting** | manual | auto REPORT.md | auto REPORT.md + markdown lists |
-| **Run comparison** | none | CLI subcommand | `slingshot compare` with tables |
-| **Duplication** | 400+ lines | eliminated | eliminated + DRY imports |
-| **Parallelisation** | none | ProcessPoolExecutor | ProcessPoolExecutor |
-| **Animation** | none | trajectory+phase-space | trajectory + phase-space video |
-| **Cross-comparison** | placeholder | `comparison.py` | `comparison.py` formatted output |
-| **Error diagnostics** | minimal | reason codes | EncounterGeometry + reason codes |
-| **Tests** | none | none | 29 tests (core, analysis, config) |
-| **Import paths** | flat | `slingshot.*` | `slingshot.core.*`, `.analysis.*`, `.output.*` + top-level re-exports |
+- The current research core is planar, not fully three-dimensional.
+- The reported width is proposal-dependent and must include its sampling
+  definition.
+- Astrophysical rates require a separate population model and are deferred.
+- Physical area cross-sections require isotropic 3D sampling and are deferred.
+- Quinn and Ortiz represent discrete observational-model uncertainty.
+- IAS15 validation requires the optional REBOUND dependency.
+- Full 3D effective cross-sections are the next major scientific milestone.
 
 ---
 
 ## License
 
-[Specify your license here]
+MIT
 
----
-
-**Version**: 3.0.0  
-**Last Updated**: February 2026  
-**Status**: Production-ready with comprehensive test suite (29 tests)
+**Repository status:** v4 scientific research core with a retained v3 legacy
+pipeline.

@@ -1,0 +1,63 @@
+schema_version: 4
+
+system:
+  name: Kepler-432 — Ortiz et al.
+  star_mass_msun: 1.35
+  star_radius_rsun: 4.16
+  planet_mass_mjup: 5.84
+  planet_radius_rjup: 1.102
+  bulk_velocity_x_kms: 0.0
+  bulk_velocity_y_kms: 0.0
+
+orbit:
+  model: keplerian
+  semi_major_axis_au: 0.303
+  eccentricity: 0.478
+  mean_anomaly_rad: 0.0
+  argument_periapsis_rad: 0.0
+  prograde: true
+
+asymptotic_sampling:
+  v_inf_kms: [10.0, 20.0, 30.0, 40.0, 60.0, 80.0, 120.0]
+  b_max_au: 1.0
+  boundary_radius_au: 5.0
+  samples_per_bin: 2000
+  seeds: [42, 43, 44, 45, 46]
+  sample_incoming_direction: true
+  sample_binary_mean_anomaly: true
+
+planar_width:
+  dimensionless_energy_thresholds: [0.0, 0.01, 0.03, 0.1, 0.3, 1.0]
+  confidence_level: 0.95
+  tail_fraction: 0.10
+  max_tail_event_fraction: 0.01
+
+numerical:
+  method: DOP853
+  rtol: 1.0e-10
+  atol: 1.0e-10
+  max_time_sec: 3.0e8
+  softening_km: 0.0
+  max_step_sec: null
+
+validation:
+  binary_elements_relative_tolerance: 1.0e-10
+  two_body_deflection_relative_tolerance: 1.0e-6
+  jacobi_relative_tolerance: 1.0e-8
+  work_energy_relative_tolerance: 1.0e-6
+  integrator_agreement_relative_tolerance: 1.0e-5
+  run_rebound_if_available: true
+
+metadata:
+  case_name: kepler432_ortiz2015
+  description: Kepler-432 observational model using the Ortiz et al. system solution.
+  parameter_source: Ortiz et al. 2015, A&A 573:L6
+  citation: https://arxiv.org/abs/1410.3000
+  uncertainties:
+    star_mass_msun: {minus: 0.10, plus: 0.10}
+    star_radius_rsun: {minus: 0.12, plus: 0.12}
+    planet_mass_mjup: {minus: 0.05, plus: 0.05}
+    planet_radius_rjup: {minus: 0.032, plus: 0.032}
+    semi_major_axis_au: {minus: 0.007, plus: 0.007}
+    eccentricity: {minus: 0.004, plus: 0.004}
+  legacy_science_model: false

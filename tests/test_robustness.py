@@ -96,6 +96,7 @@ class TestSensitivityStructure:
         from slingshot.analysis.robustness import run_numerical_sensitivity
 
         cfg = FullConfig()
+        cfg.pipeline.N_particles = 5
         rob_cfg = RobustnessConfig(
             enabled=True,
             seed=42,
