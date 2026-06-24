@@ -1,4 +1,4 @@
-"""Comprehensive scientific report generator for v4 planar-width campaigns."""
+"""Comprehensive scientific report generator for planar-width campaigns."""
 
 from __future__ import annotations
 
@@ -11,73 +11,73 @@ from .config import V4Config
 
 # Figures produced by plotting.generate_all_plots, in display order
 _FIGURE_CATALOGUE = [
-    ("v4_width_vs_vinf.png",
+    ("width_vs_vinf.png",
      "**Figure 1 — Planar-width estimates vs v∞.**  "
      "Combined Wilson 95% CI bands for every energy threshold, with individual "
      "per-seed points overlaid at Δε/vc²>0. The gray dashed line marks 2b_max "
      "(the sampling ceiling). All widths are lower bounds until the tail gate passes."),
-    ("v4_outcome_fractions.png",
+    ("outcome_fractions.png",
      "**Figure 2 — Outcome fractions vs v∞.**  "
      "Stacked bar chart showing the fraction of all samples that escape, collide "
      "with the star, collide with the planet, hit the time limit, or fail numerically. "
      "Star-collision fraction decreases strongly with speed; escape fraction increases."),
-    ("v4_collision_vs_escape.png",
+    ("collision_vs_escape.png",
      "**Figure 3 — Escape vs collision widths vs v∞.**  "
      "Effective planar widths for escape (Δε/vc²>0) and any collision, with 95% "
      "Wilson CI bands. At low v∞ the collision cross-section exceeds the escape "
      "width; at high v∞ the ordering reverses."),
-    ("v4_tail_support.png",
+    ("tail_support.png",
      "**Figure 4 — Tail-support diagnostic (middle speed bin).**  "
      "Escape event probability binned by |b|/b_max with Wilson CI. If the event "
      "rate in the outer 10% strip does not fall toward zero, b_max is too small "
      "and the width estimates are underestimates."),
-    ("v4_seed_stability.png",
+    ("seed_stability.png",
      "**Figure 5 — Seed stability (Δε/vc²>0).**  "
      "Per-seed planar-width curves (dashed) vs the pooled Wilson CI (solid black). "
      "Low between-seed scatter indicates stable estimation."),
-    ("v4_sampling_distributions.png",
+    ("sampling_distributions.png",
      "**Figure 6 — Proposal and acceptance distributions.**  "
      "Marginal histograms of signed impact parameter, incoming direction, binary "
      "mean anomaly, and speed bin. Departure from uniform acceptance reveals "
      "parameter regions that drive events."),
-    ("v4_gain_ecdf.png",
+    ("gain_ecdf.png",
      "**Figure 7 — COM energy-gain ECDF by v∞ (escaped trajectories only).**  "
      "Empirical CDFs of Δε/vc² conditioned on escape. Higher speed bins shift "
      "the distribution rightward."),
-    ("v4_deflection_distribution.png",
+    ("deflection_distribution.png",
      "**Figure 8 — Deflection-angle distributions by v∞ (escaped).**  "
      "COM-frame deflection angles for escaped trajectories."),
-    ("v4_velocity_phase_space.png",
+    ("velocity_phase_space.png",
      "**Figure 9 — COM-frame velocity phase space.**  "
      "Initial vs final COM speed coloured by energy gain, and Δ|v|_COM distributions. "
-     "The radial-normal decomposition is omitted — the v3 radial basis was "
+     "The radial-normal decomposition is omitted — the legacy radial basis was "
      "computed relative to the star-planet axis rather than the particle-planet vector."),
-    ("v4_phase_map.png",
+    ("phase_map.png",
      "**Figure 10 — Phase map: conditional mean energy gain (middle speed bin).**  "
      "Cell-averaged Δε/vc² over (impact parameter, binary mean anomaly) for escaped "
      "trajectories, with a support-count panel. Uses conditional means, not per-cell "
      "maxima over a hidden velocity dimension."),
-    ("v4_periapsis_distributions.png",
+    ("periapsis_distributions.png",
      "**Figure 11 — Periapsis distributions.**  "
      "Minimum distance to planet and star in units of the body radius. "
      "Stellar-surface-crossing trajectories are tracked as collisions."),
-    ("v4_work_energy_diagnostics.png",
+    ("work_energy_diagnostics.png",
      "**Figure 12 — Work-energy diagnostics.**  "
      "Closure residual distribution, signed work fractions, and planet work vs "
      "energy gain for escaped trajectories."),
-    ("v4_parameter_correlations.png",
+    ("parameter_correlations.png",
      "**Figure 13 — Parameter correlations (escaped trajectories).**  "
      "Energy gain vs planet periapsis, energy gain vs deflection, and deflection "
      "vs star proximity, all coloured by v∞."),
-    ("v4_candidate_ranking.png",
+    ("candidate_ranking.png",
      "**Figure 14 — Top-30 candidate ranking.**  "
      "Top 30 escaped trajectories by Δε/vc²: panels show gain, deflection, and "
      "planet periapsis. These are illustrations — not converged optima."),
-    ("v4_pareto_front.png",
+    ("pareto_front.png",
      "**Figure 15 — Pareto fronts (escaped trajectories).**  "
      "Left: (maximise gain, minimise periapsis). Right: (maximise gain, maximise "
-     "|deflection|). Both panels use valid v4 metrics."),
-    ("v4_trajectory_tracks.png",
+     "|deflection|). Both panels use the current scientific metrics."),
+    ("trajectory_tracks.png",
      "**Figure 16 — Top-10 trajectory tracks in the planet frame.**  "
      "Re-integrated from asymptotic parameters in samples.csv; coloured by Δε/vc². "
      "These are examples, not a probability density."),
@@ -115,15 +115,13 @@ def generate_report(
     quick_gates = val.get("quick", {}).get("gates", [])
 
     lines = [
-        f"# Slingshot Solver v4 — Planar Research Report",
+        f"# Slingshot Solver — Planar Research Report",
         f"## {config.system.name}",
         "",
         "| | |",
         "|---|---|",
         f"| **Started** | {manifest.get('started_utc', '—')} |",
         f"| **Duration** | {manifest.get('duration_sec', 0)/3600:.2f} h |",
-        f"| **Package version** | {manifest.get('package_version', '—')} |",
-        f"| **Git commit** | `{manifest.get('git_commit', '—')[:12]}` |",
         f"| **Validation** | `{manifest.get('validation_status', '—').upper()}` |",
         "",
         "---",
@@ -353,14 +351,14 @@ def generate_report(
         "## Diagnostic Figures",
         "",
         "All figures read from `samples.csv` and `width_summary.csv`. "
-        "Regenerate at any time with: `python run_v4.py plot <run_dir>`",
+        "Regenerate at any time with: `slingshot plot <run_dir>`",
         "",
     ]
 
     included = 0
     for filename, caption in _FIGURE_CATALOGUE:
         if (output_path / filename).exists():
-            section = filename.replace("v4_", "").replace(".png", "").replace("_", " ").title()
+            section = filename.replace(".png", "").replace("_", " ").title()
             lines += [
                 f"### {section}",
                 "",
@@ -375,7 +373,7 @@ def generate_report(
         lines += [
             "*Figures not yet generated. Run:*",
             "```",
-            "python run_v4.py plot <run_dir>",
+            "slingshot plot <run_dir>",
             "```",
             "",
         ]
@@ -402,6 +400,17 @@ def generate_report(
         "",
         "6. **Time-limited trajectories.** Trajectories that hit max_time_sec are counted "
         "as non-events, reducing width estimates.",
+        "",
+        "---",
+        "",
+        "## Run Reference",
+        "",
+        "| Field | Value |",
+        "|---|---|",
+        f"| Package version | {manifest.get('package_version', '—')} |",
+        f"| Schema version | {manifest.get('schema_version', '—')} |",
+        f"| Science model | {manifest.get('science_model', '—')} |",
+        f"| Git commit | `{manifest.get('git_commit', '—')[:12]}` |",
         "",
     ]
 

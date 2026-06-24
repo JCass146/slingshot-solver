@@ -30,7 +30,7 @@ def _package_version() -> str:
         # Fall back to reading pyproject.toml when the package is not installed
         try:
             import re
-            _root = pathlib.Path(__file__).parent.parent.parent
+            _root = Path(__file__).parent.parent.parent
             text = (_root / "pyproject.toml").read_text(encoding="utf-8")
             match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
             return match.group(1) if match else "unknown"
@@ -211,7 +211,7 @@ def run_campaign(
     seeds: Optional[Sequence[int]] = None,
     verbose: bool = True,
 ) -> dict:
-    """Run all configured v-infinity bins and write compact v4 artifacts."""
+    """Run all configured v-infinity bins and write compact artifacts."""
     config = load_config(config_path)
     if samples_per_bin is not None:
         config.asymptotic_sampling.samples_per_bin = int(samples_per_bin)
@@ -222,7 +222,7 @@ def run_campaign(
     if output_dir is None:
         stamp = started.strftime("%Y%m%d_%H%M%S")
         output_path = Path(
-            f"results/v4_{config.metadata.case_name}_{stamp}"
+            f"results/{config.metadata.case_name}_{stamp}"
         )
     else:
         output_path = Path(output_dir)
@@ -246,7 +246,6 @@ def run_campaign(
             # Derive an independent child RNG for this (v_inf, seed) pair so
             # that different speed bins do not share common random numbers
             # unless a paired CRN design is explicitly declared (P1.3).
-            seq = np.random.SeedSequence(seed)
             # Mix the v_inf value into the stream via a secondary seed
             v_inf_bits = abs(hash(float(v_inf))) & 0xFFFFFFFFFFFFFFFF
             child_seq = np.random.SeedSequence([seed, int(v_inf_bits)])
@@ -406,9 +405,9 @@ def run_campaign(
     }
     with (output_path / "manifest.json").open("w", encoding="utf-8") as stream:
         json.dump(manifest, stream, indent=2, allow_nan=False)
-    report = generate_report(output_path, config, summary_records, manifest)
 
-    # Generate diagnostic figures
+    # Generate diagnostic figures before writing the report so the report can
+    # include links to any figures that were successfully created.
     try:
         from .plotting import generate_all_plots
         if verbose:
@@ -417,6 +416,8 @@ def run_campaign(
     except Exception as _plot_exc:
         if verbose:
             print(f"  Plotting skipped: {_plot_exc}")
+
+    report = generate_report(output_path, config, summary_records, manifest)
 
     return {
         "config": config,

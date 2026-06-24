@@ -1,9 +1,9 @@
-"""Tiny end-to-end artifact test for the v4 campaign runner."""
+"""Tiny end-to-end artifact test for the campaign runner."""
 
 import json
 
 
-def test_tiny_campaign_writes_versioned_artifacts(tmp_path):
+def test_tiny_campaign_writes_artifacts(tmp_path):
     from slingshot.v4.campaign import run_campaign
     from slingshot.v4.config import (
         AsymptoticSamplingConfig,

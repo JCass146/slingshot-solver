@@ -1,27 +1,25 @@
 # Slingshot Solver
 
 Slingshot Solver is a Python research project for studying planar gravitational
-scattering in a restricted three-body star-planet system. The repository
-contains two versioned workflows:
+scattering in a restricted three-body star-planet system. The primary workflow
+estimates effective planar encounter widths as a function of asymptotic speed.
 
-- **v4 research core** — the current scientific workflow for estimating
-  effective planar encounter widths as a function of asymptotic speed.
-- **v3 legacy pipeline** — the earlier exploratory Monte Carlo, plotting,
-  animation, and candidate-ranking workflow.
+A legacy exploratory pipeline remains available for historical Monte Carlo,
+plotting, animation, and candidate-ranking experiments. Historical runs are
+readable, but they are not scientifically comparable with the current research
+workflow and are excluded from current aggregates.
 
-The v4 core corrects the orbital initialization, asymptotic encounter proposal,
-energy definitions, event handling, statistical estimand, and validation
-strategy. Historical v3 runs are readable but not scientifically comparable
-with v4 results and are excluded from v4 aggregates.
+The current core corrects the orbital initialization, asymptotic encounter
+proposal, energy definitions, event handling, statistical estimand, and
+validation strategy.
 
 **Units:** km, kg, and s throughout. Specific energies in km²/s² (= MJ/kg).
-**Package version:** 4.0.0
 
 ---
 
 ## Scientific Scope
 
-The primary v4 result is an **effective planar encounter width**:
+The primary result is an **effective planar encounter width**:
 
 $$W\!\left(\Delta\epsilon / v_c^2 > q \mid v_\infty\right) = 2b_{\max}\frac{N_{\mathrm{event}}}{N}$$
 
@@ -39,7 +37,7 @@ event probability, or occurrence rate.
 
 ---
 
-## What v4 Adds
+## What The Current Core Adds
 
 - Eccentric Keplerian binary initialization from semi-major axis,
   eccentricity, mean anomaly, argument of periapsis, masses, and direction.
@@ -55,14 +53,14 @@ event probability, or occurrence rate.
 - Wilson confidence intervals, collision widths, gain quantiles, and
   one-sided confidence-bound tail gate.
 - DOP853 campaign integration; Radau cross-checks; optional REBOUND IAS15.
-- Versioned configurations, manifests, observational provenance, and compact
+- Configurations, manifests, observational provenance, and compact
   per-sample records.
 - Separate Kepler-432 models for Quinn et al. and Ortiz et al., treated as
   discrete observational-model uncertainty.
 - Per-(v∞, seed) independent RNG streams for reproducibility.
 - Seed-level variance and heterogeneity diagnostics.
 - 16 automatically generated diagnostic figures per campaign run.
-- `python run_v4.py plot <run_dir>` to regenerate figures from any archived run.
+- `slingshot plot <run_dir>` to regenerate figures from any archived run.
 
 ---
 
@@ -90,36 +88,36 @@ Optional independent-integrator validation:
 python -m pip install rebound
 ```
 
-### Validate a v4 Preset
+### Validate a Preset
 
 Run the fast deterministic checks (binary elements, deflection gate,
 Jacobi conservation, etc.):
 
 ```bash
-python run_v4.py validate configs/v4_kepler432_quinn.yaml
+slingshot validate configs/kepler432_quinn.yaml
 ```
 
 Run the full publication-gate set (includes convergence diagnostics,
 Galilean invariance, integrator agreement):
 
 ```bash
-python validate_v4.py configs/v4_kepler432_quinn.yaml
+python validate.py configs/kepler432_quinn.yaml
 ```
 
 ### Run a Small Pilot
 
 ```bash
-python run_v4.py run configs/v4_kepler432_ortiz.yaml \
+slingshot run configs/kepler432_ortiz.yaml \
   --samples-per-bin 100 \
   --seeds 42,43 \
-  --output-dir results/v4_ortiz_pilot
+  --output-dir results/ortiz_pilot
 ```
 
 ### Run the Configured Campaign
 
 ```bash
-python run_v4.py run configs/v4_kepler432_ortiz.yaml
-python run_v4.py run configs/v4_kepler432_quinn.yaml
+slingshot run configs/kepler432_ortiz.yaml
+slingshot run configs/kepler432_quinn.yaml
 ```
 
 Each preset defaults to 7 speed bins × 5 seeds × 2,000 trajectories
@@ -129,18 +127,18 @@ Each preset defaults to 7 speed bins × 5 seeds × 2,000 trajectories
 ### Regenerate Figures for an Existing Run
 
 ```bash
-python run_v4.py plot results/v4_kepler432_ortiz2015_<timestamp>
+slingshot plot results/kepler432_ortiz2015_<timestamp>
 ```
 
 ---
 
-## v4 Presets
+## Presets
 
 | Preset | Purpose |
 |---|---|
-| `configs/v4_dimensionless_reference.yaml` | Dimensionless Jupiter-analog reference for method development |
-| `configs/v4_kepler432_quinn.yaml` | Kepler-432 b from Quinn et al. 2015 |
-| `configs/v4_kepler432_ortiz.yaml` | Kepler-432 b from Ortiz et al. 2015 |
+| `configs/dimensionless_reference.yaml` | Dimensionless Jupiter-analog reference for method development |
+| `configs/kepler432_quinn.yaml` | Kepler-432 b from Quinn et al. 2015 |
+| `configs/kepler432_ortiz.yaml` | Kepler-432 b from Ortiz et al. 2015 |
 
 Quinn and Ortiz results should be compared side by side. They should not be
 combined into a single posterior without a hierarchical model that justifies
@@ -148,9 +146,9 @@ doing so.
 
 ---
 
-## v4 Configuration
+## Configuration
 
-Every v4 configuration declares `schema_version: 4`:
+Every current configuration declares `schema_version: 4`:
 
 ```yaml
 schema_version: 4
@@ -219,7 +217,7 @@ binary center-of-mass frame.
 
 ### 2. Asymptotic Proposal
 
-For each fixed $v_\infty$ bin, v4 samples:
+For each fixed $v_\infty$ bin, the sampler draws:
 
 - signed impact parameter uniformly over $[-b_{\max}, b_{\max}]$;
 - incoming direction uniformly over $[0, 2\pi)$;
@@ -254,7 +252,7 @@ diagnostic. It is **not** interpreted as energy gain.
 
 ### 5. Statistical Summary
 
-For every (speed, threshold) pair, v4 reports:
+For every (speed, threshold) pair, the workflow reports:
 
 - effective planar width W with Wilson CI;
 - event count and effective sample size;
@@ -269,38 +267,38 @@ under `scope=seed_variance`.
 
 ## Run Artifacts
 
-Each v4 campaign writes:
+Each campaign writes:
 
 ```text
-results/v4_<case>_<timestamp>/
-├── config.yaml              # Frozen schema-v4 configuration
+results/<case>_<timestamp>/
+├── config.yaml              # Frozen configuration
 ├── samples.csv              # Proposal vars, outcomes, metrics, work, solver diagnostics
 ├── width_summary.csv        # Per-seed, combined, and seed-variance width rows
 ├── manifest.json            # Schema, version, commit, seeds, gates, provenance
 ├── REPORT.md                # Comprehensive report with all tables and figures
-├── v4_width_vs_vinf.png     # Primary estimand: W(v∞) with CI and seed points
-├── v4_outcome_fractions.png # Stacked outcome bars per speed bin
-├── v4_collision_vs_escape.png
-├── v4_tail_support.png
-├── v4_seed_stability.png
-├── v4_sampling_distributions.png
-├── v4_gain_ecdf.png
-├── v4_deflection_distribution.png
-├── v4_velocity_phase_space.png
-├── v4_phase_map.png         # Conditional mean gain over (b, binary phase)
-├── v4_periapsis_distributions.png
-├── v4_work_energy_diagnostics.png
-├── v4_parameter_correlations.png
-├── v4_candidate_ranking.png
-├── v4_pareto_front.png      # Two Pareto fronts using valid v4 metrics
-└── v4_trajectory_tracks.png # Top-10 re-integrated trajectories in planet frame
+├── width_vs_vinf.png     # Primary estimand: W(v∞) with CI and seed points
+├── outcome_fractions.png # Stacked outcome bars per speed bin
+├── collision_vs_escape.png
+├── tail_support.png
+├── seed_stability.png
+├── sampling_distributions.png
+├── gain_ecdf.png
+├── deflection_distribution.png
+├── velocity_phase_space.png
+├── phase_map.png         # Conditional mean gain over (b, binary phase)
+├── periapsis_distributions.png
+├── work_energy_diagnostics.png
+├── parameter_correlations.png
+├── candidate_ranking.png
+├── pareto_front.png      # Two Pareto fronts using current scientific metrics
+└── trajectory_tracks.png # Top-10 re-integrated trajectories in planet frame
 ```
 
 ---
 
 ## Validation System
 
-The v4 validation system checks:
+The validation system checks:
 
 | Gate | Type | Description |
 |---|---|---|
@@ -334,36 +332,12 @@ pytest -q
 
 ## Project Structure
 
-```text
-slingshot-solver/
-├── slingshot/
-│   ├── v4/
-│   │   ├── config.py       # Schema-v4 Pydantic models and serialization
-│   │   ├── dynamics.py     # Keplerian binary init and event-driven integration
-│   │   ├── sampling.py     # Asymptotic hyperbolic proposal
-│   │   ├── metrics.py      # COM metrics and moving-potential work accounting
-│   │   ├── statistics.py   # Wilson intervals, planar widths, tail CI gate
-│   │   ├── validation.py   # Fast deterministic checks (binary, two-body, Jacobi)
-│   │   ├── gates.py        # Publication gates (work-energy, Galilean, convergence)
-│   │   ├── campaign.py     # Campaign runner, artifacts, seed variance
-│   │   ├── report.py       # Comprehensive report with all tables and figure refs
-│   │   ├── plotting.py     # 16 diagnostic figures from CSV artifacts
-│   │   ├── runs.py         # Version-aware run discovery
-│   │   └── cli.py          # run / validate / plot subcommands
-│   ├── core/               # Legacy v3 dynamics and two-body tools
-│   ├── analysis/           # Legacy v3 Monte Carlo and diagnostics
-│   └── output/             # Legacy v3 plots, reports, and animation
-├── configs/
-│   ├── v4_kepler432_ortiz.yaml
-│   ├── v4_kepler432_quinn.yaml
-│   └── v4_dimensionless_reference.yaml
-├── diagnostics/
-│   └── eval_latest_v4.py   # Structured evaluation of most recent v4 run
-├── tests/
-├── run_v4.py               # v4 entry point (run / validate / plot)
-├── validate_v4.py          # Full publication-gate runner
-└── run.py                  # Legacy v3 CLI wrapper
-```
+- `slingshot/` contains the current research workflow plus retained legacy modules.
+- `configs/` contains the current research presets and legacy configs.
+- `diagnostics/` contains helper scripts for inspecting completed runs.
+- `tests/` covers the current research core, legacy compatibility, and utilities.
+- `validate.py` runs the full publication-gate validation suite.
+- `run.py` remains the legacy pipeline wrapper.
 
 ---
 
@@ -375,9 +349,9 @@ The v3 pipeline remains available for historical analysis:
 python run.py configs/config_kepler432_case.yaml
 ```
 
-Existing v3 directories are recognized by `slingshot.v4.runs.classify_run()`
-and marked `legacy_science_model: true`. `discover_v4_runs()` returns only
-eligible v4 runs.
+Existing legacy directories are recognized by the run-discovery helpers
+and marked `legacy_science_model: true`. Current aggregate discovery returns
+only eligible current-schema runs.
 
 **v3 results should not be presented as scientific conclusions about Kepler-432 b.
 All known limitations are documented in `METHODOLOGY_AUDIT.md`.**
@@ -398,4 +372,4 @@ All known limitations are documented in `METHODOLOGY_AUDIT.md`.**
 
 MIT
 
-**Repository status:** v4 scientific research core (4.0.0) with retained v3 legacy pipeline.
+**Repository status:** current scientific research core with retained legacy pipeline.

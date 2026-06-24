@@ -71,7 +71,7 @@ New fields `tail_zone_trials` and `tail_fraction_upper_bound` appear in every
 threshold row. New tests in `tests/test_v4_statistics.py` verify the
 zero-event case.
 
-**P0.5 — Corrected Quinn asymmetric uncertainty metadata** (`configs/v4_kepler432_quinn.yaml`)
+**P0.5 — Corrected Quinn asymmetric uncertainty metadata** (`configs/kepler432_quinn.yaml`)
 
 Quinn et al. (1411.4666) report asymmetric uncertainties. The previous config
 symmetrized the eccentricity (`±0.0097` instead of `+0.0098/−0.0089`), planet
@@ -94,7 +94,7 @@ installed. The manifest `package_version` field is now always populated.
 After each combined v∞ summary, `_append_seed_variance_rows()` collects
 per-seed width estimates and appends `scope="seed_variance"` rows reporting
 `n_seeds`, `seed_mean_width_km`, `seed_std_width_km`, and `seed_heterogeneity`
-(between-seed std / pooled width). The report and the new `v4_seed_stability.png`
+(between-seed std / pooled width). The report and the new `seed_stability.png`
 figure surface these.
 
 **P1.3 — Independent RNG streams per (v∞, seed) pair** (`campaign.py`)
@@ -122,30 +122,30 @@ Both Kepler-432 configs updated:
 - `max_time_limit_fraction: 0.05` and `max_numerical_failure_fraction: 0.01`
   added explicitly.
 
-#### v4 Plotting module (`slingshot/v4/plotting.py`)
+#### Plotting module (`slingshot/v4/plotting.py`)
 
 16 diagnostic figures generated automatically at the end of every campaign run,
 all reading from `samples.csv` and `width_summary.csv` (no `results.pkl`).
-Also available standalone via `python run_v4.py plot <run_dir>`.
+Also available standalone via `slingshot plot <run_dir>`.
 
 | Figure | v3 equivalent | Key improvement |
 |---|---|---|
-| `v4_width_vs_vinf.png` | *(new)* | Primary estimand + per-seed points |
-| `v4_outcome_fractions.png` | `mc_summary_slingshot_outcomes.png` | Per speed bin, all outcomes |
-| `v4_collision_vs_escape.png` | *(new)* | Escape and collision widths overlaid |
-| `v4_tail_support.png` | *(new)* | Event rate vs \|b\|/b_max with CI |
-| `v4_seed_stability.png` | *(new)* | Per-seed curves vs pooled CI |
-| `v4_sampling_distributions.png` | `sampling_distribution_*.png` ×4 | Consolidated; acceptance overlay |
-| `v4_gain_ecdf.png` | `energy_cdf.png` | Fixed: single consistent metric |
-| `v4_deflection_distribution.png` | `mc_summary_deflection_distribution.png` | COM-frame; per speed bin |
-| `v4_velocity_phase_space.png` | `velocity_phase_space_vx_vy.png` | COM-frame (boost-invariant) |
-| `v4_phase_map.png` | `trajectory_phase_energy_planet.png` | Conditional mean, not max over hidden v |
-| `v4_periapsis_distributions.png` | `star_proximity_distribution_*.png` ×2 | Both bodies; log-scale |
-| `v4_work_energy_diagnostics.png` | *(new)* | Closure residuals; work fractions |
-| `v4_parameter_correlations.png` | `parameter_correlations_*.png` | Valid v4 metrics; coloured by v∞ |
-| `v4_candidate_ranking.png` | `candidate_ranking_*.png` | Top-30 by energy gain |
-| `v4_pareto_front.png` | `pareto_front_2d.png` | Fixed: valid metrics (not energy_from_planet_orbit) |
-| `v4_trajectory_tracks.png` | `trajectory_tracks_planet.png` | Re-integrated from asymptotic params |
+| `width_vs_vinf.png` | *(new)* | Primary estimand + per-seed points |
+| `outcome_fractions.png` | `mc_summary_slingshot_outcomes.png` | Per speed bin, all outcomes |
+| `collision_vs_escape.png` | *(new)* | Escape and collision widths overlaid |
+| `tail_support.png` | *(new)* | Event rate vs \|b\|/b_max with CI |
+| `seed_stability.png` | *(new)* | Per-seed curves vs pooled CI |
+| `sampling_distributions.png` | `sampling_distribution_*.png` ×4 | Consolidated; acceptance overlay |
+| `gain_ecdf.png` | `energy_cdf.png` | Fixed: single consistent metric |
+| `deflection_distribution.png` | `mc_summary_deflection_distribution.png` | COM-frame; per speed bin |
+| `velocity_phase_space.png` | `velocity_phase_space_vx_vy.png` | COM-frame (boost-invariant) |
+| `phase_map.png` | `trajectory_phase_energy_planet.png` | Conditional mean, not max over hidden v |
+| `periapsis_distributions.png` | `star_proximity_distribution_*.png` ×2 | Both bodies; log-scale |
+| `work_energy_diagnostics.png` | *(new)* | Closure residuals; work fractions |
+| `parameter_correlations.png` | `parameter_correlations_*.png` | Current scientific metrics; coloured by v∞ |
+| `candidate_ranking.png` | `candidate_ranking_*.png` | Top-30 by energy gain |
+| `pareto_front.png` | `pareto_front_2d.png` | Fixed: valid metrics (not energy_from_planet_orbit) |
+| `trajectory_tracks.png` | `trajectory_tracks_planet.png` | Re-integrated from asymptotic params |
 
 Five v3 figures intentionally excluded (audit-flagged as methodologically wrong
 or misleading):
@@ -158,13 +158,13 @@ or misleading):
 **New CLI subcommand:**
 
 ```bash
-python run_v4.py plot <run_dir>   # Regenerate all figures for any existing run
+slingshot plot <run_dir>   # Regenerate all figures for any existing run
 ```
 
 #### Report (`slingshot/v4/report.py`)
 
 Completely rewritten. The report now includes:
-- Run metadata table (started, duration, version, commit, validation status)
+- Run metadata table (started, duration, validation status) plus end-of-report run reference
 - Observational model and uncertainty table
 - Sampling and integration parameters
 - Full width table for all thresholds and all speed bins
@@ -179,7 +179,7 @@ Completely rewritten. The report now includes:
 
 #### Diagnostic script (`diagnostics/eval_latest_v4.py`)
 
-Structured command-line evaluation of the most recent v4 run, printing all
+Structured command-line evaluation of the most recent current-schema run, printing all
 width tables, outcome breakdown, seed variance, and campaign gate results.
 
 ---
@@ -351,7 +351,6 @@ Monolithic `ThreeBodySolver3.ipynb` notebook. Functional but with hardcoded para
 ## Future Roadmap
 
 - [ ] 3D orbital dynamics (z-coordinate)
-- [ ] Eccentric orbits for star-planet binary
 - [ ] GPU ODE integration (JAX/CuPy)
 - [ ] Multi-trajectory comparison animations (Type C)
 - [ ] ML-based outcome prediction

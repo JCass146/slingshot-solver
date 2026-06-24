@@ -43,7 +43,8 @@ dev = [
 ]
 
 [project.scripts]
-slingshot = "slingshot.cli:main"
+slingshot = "slingshot.v4.cli:main"
+slingshot-legacy = "slingshot.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["slingshot*"]

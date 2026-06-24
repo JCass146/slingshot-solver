@@ -153,7 +153,7 @@ def analyze_integration(
 
 
 def resolve_metric(metrics: dict[str, Any], name: str) -> Any:
-    """Resolve v4 metrics while warning on readable legacy aliases."""
+    """Resolve current metrics while warning on readable legacy aliases."""
     resolved = LEGACY_METRIC_ALIASES.get(name, name)
     if resolved != name:
         warnings.warn(

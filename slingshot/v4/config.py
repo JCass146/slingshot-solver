@@ -1,4 +1,4 @@
-"""Configuration models for the defensible planar v4 research core."""
+"""Configuration models for the defensible planar research core."""
 
 from __future__ import annotations
 
@@ -159,7 +159,7 @@ class V4Config(BaseModel):
 
 
 def load_config(path: str | Path) -> V4Config:
-    """Load a strict v4 YAML or JSON configuration."""
+    """Load a strict current-schema YAML or JSON configuration."""
     config_path = Path(path)
     with config_path.open("r", encoding="utf-8") as stream:
         if config_path.suffix.lower() in {".yaml", ".yml"}:
@@ -172,7 +172,7 @@ def load_config(path: str | Path) -> V4Config:
 
 
 def save_config(config: V4Config, path: str | Path) -> None:
-    """Safely serialize a v4 configuration without Python-specific YAML tags."""
+    """Safely serialize a current-schema configuration without Python-specific YAML tags."""
     config_path = Path(path)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     data = config.model_dump(mode="json")

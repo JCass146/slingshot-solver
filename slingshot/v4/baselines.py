@@ -1,4 +1,4 @@
-"""Matched moving-body two-body controls for v4 comparisons."""
+"""Matched moving-body two-body controls for research comparisons."""
 
 from __future__ import annotations
 

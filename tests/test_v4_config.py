@@ -1,4 +1,4 @@
-"""Configuration and observational-preset tests for the v4 core."""
+"""Configuration and observational-preset tests for the research core."""
 
 from pathlib import Path
 
@@ -8,10 +8,10 @@ import pytest
 ROOT = Path(__file__).parent.parent
 
 
-def test_v4_config_roundtrip(tmp_path):
+def test_config_roundtrip(tmp_path):
     from slingshot.v4.config import load_config, save_config
 
-    config = load_config(ROOT / "configs" / "v4_kepler432_quinn.yaml")
+    config = load_config(ROOT / "configs" / "kepler432_quinn.yaml")
     output = tmp_path / "roundtrip.yaml"
     save_config(config, output)
     loaded = load_config(output)
@@ -22,8 +22,8 @@ def test_v4_config_roundtrip(tmp_path):
 @pytest.mark.parametrize(
     ("filename", "mass", "semi_major_axis", "eccentricity"),
     [
-        ("v4_kepler432_quinn.yaml", 1.32, 0.301, 0.5134),
-        ("v4_kepler432_ortiz.yaml", 1.35, 0.303, 0.478),
+        ("kepler432_quinn.yaml", 1.32, 0.301, 0.5134),
+        ("kepler432_ortiz.yaml", 1.35, 0.303, 0.478),
     ],
 )
 def test_observational_presets(filename, mass, semi_major_axis, eccentricity):

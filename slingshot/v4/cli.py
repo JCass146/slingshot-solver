@@ -1,4 +1,4 @@
-"""Command-line interface for the standalone v4 planar research core."""
+"""Command-line interface for planar-width campaigns."""
 
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from .validation import run_quick_validation
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Slingshot Solver v4 effective-planar-width campaign"
+        description="Slingshot Solver effective-planar-width campaign"
     )
     subparsers = parser.add_subparsers(dest="command")
-    run_parser = subparsers.add_parser("run", help="Run a v4 campaign")
+    run_parser = subparsers.add_parser("run", help="Run a campaign")
     run_parser.add_argument("config")
     run_parser.add_argument("--output-dir", "-o")
     run_parser.add_argument("--samples-per-bin", type=int)
@@ -23,14 +23,14 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--quiet", action="store_true")
 
     validate_parser = subparsers.add_parser(
-        "validate", help="Run deterministic v4 validation gates"
+        "validate", help="Run deterministic validation gates"
     )
     validate_parser.add_argument("config")
 
     plot_parser = subparsers.add_parser(
-        "plot", help="Generate diagnostic figures for an existing v4 run directory"
+        "plot", help="Generate diagnostic figures for an existing run directory"
     )
-    plot_parser.add_argument("run_dir", help="Path to a completed v4 run directory")
+    plot_parser.add_argument("run_dir", help="Path to a completed run directory")
     plot_parser.add_argument("--quiet", action="store_true")
     return parser
 

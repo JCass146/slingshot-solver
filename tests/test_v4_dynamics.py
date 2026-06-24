@@ -1,4 +1,4 @@
-"""Orbital-element and event-integration tests for v4."""
+"""Orbital-element and event-integration tests for the research core."""
 
 import numpy as np
 import pytest

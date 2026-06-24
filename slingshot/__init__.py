@@ -1,7 +1,7 @@
 """
 Slingshot Solver: Gravitational slingshot dynamics in restricted 3-body systems
 
-Package structure (v3.0.0):
+Package structure:
     slingshot/
     ├── core/           — Physics engines + sampling
     │   ├── twobody_scatter  — Ground-truth closed-form 2-body scattering (pure math)
@@ -27,7 +27,7 @@ Package structure (v3.0.0):
     └── cli.py          — CLI entry point
 """
 
-__version__ = "3.0.0"
+__version__ = "4.0.0"
 
 # ── Cross-cutting infrastructure ──────────────────────────────────────
 from .constants import (

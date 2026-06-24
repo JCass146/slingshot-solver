@@ -1,4 +1,4 @@
-"""Numerical and physical validation gates for the v4 research core."""
+"""Numerical and physical validation gates for the research core."""
 
 from __future__ import annotations
 

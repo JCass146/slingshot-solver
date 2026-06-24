@@ -1,4 +1,4 @@
-"""Version-aware run discovery that excludes legacy science from v4 aggregates."""
+"""Run discovery that excludes legacy science from current aggregates."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def classify_run(path: str | Path) -> dict:
     }
 
 
-def discover_v4_runs(root: str | Path = "results") -> list[Path]:
+def discover_current_runs(root: str | Path = "results") -> list[Path]:
     root_path = Path(root)
     if not root_path.exists():
         return []
@@ -44,3 +44,13 @@ def discover_v4_runs(root: str | Path = "results") -> list[Path]:
         ):
             runs.append(path)
     return runs
+
+
+def discover_runs(root: str | Path = "results") -> list[Path]:
+    """Return current-schema runs eligible for aggregate analysis."""
+    return discover_current_runs(root)
+
+
+def discover_v4_runs(root: str | Path = "results") -> list[Path]:
+    """Backward-compatible alias for older callers."""
+    return discover_current_runs(root)

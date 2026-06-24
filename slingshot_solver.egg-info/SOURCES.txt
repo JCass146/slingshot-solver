@@ -36,6 +36,7 @@ slingshot/v4/config.py
 slingshot/v4/dynamics.py
 slingshot/v4/gates.py
 slingshot/v4/metrics.py
+slingshot/v4/plotting.py
 slingshot/v4/report.py
 slingshot/v4/runs.py
 slingshot/v4/sampling.py

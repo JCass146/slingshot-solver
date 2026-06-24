@@ -1,4 +1,4 @@
-"""Diagnostic figures for v4 planar-width campaigns.
+"""Diagnostic figures for planar-width campaigns.
 
 All plots read from the CSV/JSON artifacts written by campaign.run_campaign().
 Nothing here depends on results.pkl or v3 data structures.
@@ -27,7 +27,7 @@ AU_KM = 1.495978707e8
 
 def _require_mpl():
     if not _MPL:
-        raise ImportError("matplotlib is required for v4 plotting")
+        raise ImportError("matplotlib is required for plotting")
 
 
 def _load(run_dir: Path):
@@ -113,8 +113,8 @@ def plot_width_vs_vinf(run_dir: Path, thresholds: Optional[list] = None) -> Path
     ax.legend(fontsize=8, ncol=2)
     ax.set_ylim(bottom=0)
     fig.tight_layout()
-    out = run_dir / "v4_width_vs_vinf.png"
-    _savefig(fig, run_dir, "v4_width_vs_vinf.png")
+    out = run_dir / "width_vs_vinf.png"
+    _savefig(fig, run_dir, "width_vs_vinf.png")
     return out
 
 
@@ -158,8 +158,8 @@ def plot_outcome_fractions(run_dir: Path) -> Path:
     ax.legend(fontsize=9, loc="upper right")
     ax.set_ylim(0, 1.05)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_outcome_fractions.png")
-    return run_dir / "v4_outcome_fractions.png"
+    _savefig(fig, run_dir, "outcome_fractions.png")
+    return run_dir / "outcome_fractions.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -214,8 +214,8 @@ def plot_tail_support(run_dir: Path, v_inf_kms: float = None) -> Path:
     ax.set_xlim(0, 1)
     ax.set_ylim(0)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_tail_support.png")
-    return run_dir / "v4_tail_support.png"
+    _savefig(fig, run_dir, "tail_support.png")
+    return run_dir / "tail_support.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -252,8 +252,8 @@ def plot_gain_ecdf(run_dir: Path) -> Path:
     ax.set_xlim(left=min(-0.05, ax.get_xlim()[0]))
     ax.set_ylim(0, 1.02)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_gain_ecdf.png")
-    return run_dir / "v4_gain_ecdf.png"
+    _savefig(fig, run_dir, "gain_ecdf.png")
+    return run_dir / "gain_ecdf.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -303,8 +303,8 @@ def plot_seed_stability(run_dir: Path, threshold: float = 0.0) -> Path:
     ax.legend(fontsize=8, ncol=3)
     ax.set_ylim(bottom=0)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_seed_stability.png")
-    return run_dir / "v4_seed_stability.png"
+    _savefig(fig, run_dir, "seed_stability.png")
+    return run_dir / "seed_stability.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -371,8 +371,8 @@ def plot_sampling_distributions(run_dir: Path) -> Path:
     name = _meta(cfg_raw)["name"]
     fig.suptitle(f"{name} — Proposal & acceptance distributions", fontsize=12)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_sampling_distributions.png")
-    return run_dir / "v4_sampling_distributions.png"
+    _savefig(fig, run_dir, "sampling_distributions.png")
+    return run_dir / "sampling_distributions.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -440,8 +440,8 @@ def plot_work_energy_diagnostics(run_dir: Path) -> Path:
     name = _meta(cfg_raw)["name"]
     fig.suptitle(f"{name} — Work-energy diagnostics", fontsize=12)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_work_energy_diagnostics.png")
-    return run_dir / "v4_work_energy_diagnostics.png"
+    _savefig(fig, run_dir, "work_energy_diagnostics.png")
+    return run_dir / "work_energy_diagnostics.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -481,8 +481,8 @@ def plot_periapsis_distributions(run_dir: Path) -> Path:
 
     fig.suptitle(f"{name} — Periapsis distributions", fontsize=12)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_periapsis_distributions.png")
-    return run_dir / "v4_periapsis_distributions.png"
+    _savefig(fig, run_dir, "periapsis_distributions.png")
+    return run_dir / "periapsis_distributions.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -510,7 +510,7 @@ def plot_phase_map(run_dir: Path, v_inf_kms: float = None) -> Path:
             and r.get("energy_gain_dimensionless", "nan") not in ("nan", "")]
 
     if not rows:
-        return run_dir / "v4_phase_map.png"
+        return run_dir / "phase_map.png"
 
     b_vals = np.array([float(r["impact_parameter_km"]) / AU_KM for r in rows])
     ma_vals = np.degrees([float(r["binary_mean_anomaly_rad"]) for r in rows])
@@ -557,8 +557,8 @@ def plot_phase_map(run_dir: Path, v_inf_kms: float = None) -> Path:
     name = _meta(cfg_raw)["name"]
     fig.suptitle(f"{name} — Phase map: b × binary phase", fontsize=11)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_phase_map.png")
-    return run_dir / "v4_phase_map.png"
+    _savefig(fig, run_dir, "phase_map.png")
+    return run_dir / "phase_map.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -592,8 +592,8 @@ def plot_deflection_distribution(run_dir: Path) -> Path:
                  "Deflection distribution by v∞ (escaped trajectories)")
     ax.legend(fontsize=8, ncol=2)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_deflection_distribution.png")
-    return run_dir / "v4_deflection_distribution.png"
+    _savefig(fig, run_dir, "deflection_distribution.png")
+    return run_dir / "deflection_distribution.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -635,8 +635,8 @@ def plot_collision_vs_escape_width(run_dir: Path) -> Path:
     ax.legend(fontsize=10)
     ax.set_ylim(bottom=0)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_collision_vs_escape.png")
-    return run_dir / "v4_collision_vs_escape.png"
+    _savefig(fig, run_dir, "collision_vs_escape.png")
+    return run_dir / "collision_vs_escape.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -647,7 +647,7 @@ def plot_parameter_correlations(run_dir: Path) -> Path:
     """Scatter plots of key trajectory observables vs COM energy gain.
 
     Each panel shows escaped trajectories only, coloured by v∞.
-    This replaces the v3 parameter_correlations_* figures using valid v4 metrics.
+    This replaces the v3 parameter_correlations_* figures using current scientific metrics.
     """
     _require_mpl()
     run_dir = Path(run_dir)
@@ -692,8 +692,8 @@ def plot_parameter_correlations(run_dir: Path) -> Path:
     plt.colorbar(sc, ax=axes, label="v∞ (km/s)", shrink=0.8)
     fig.suptitle(f"{_meta(cfg_raw)['name']} — Parameter correlations (escaped)", fontsize=11)
     fig.subplots_adjust(right=0.88)
-    _savefig(fig, run_dir, "v4_parameter_correlations.png")
-    return run_dir / "v4_parameter_correlations.png"
+    _savefig(fig, run_dir, "parameter_correlations.png")
+    return run_dir / "parameter_correlations.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -719,7 +719,7 @@ def plot_velocity_phase_space(run_dir: Path) -> Path:
                and r.get("energy_gain_dimensionless", "nan") not in ("nan", "")]
 
     if not escaped:
-        return run_dir / "v4_velocity_phase_space.png"
+        return run_dir / "velocity_phase_space.png"
 
     v_in = np.array([float(r["initial_speed_com"]) for r in escaped])
     v_out = np.array([float(r["final_speed_com"]) for r in escaped])
@@ -758,8 +758,8 @@ def plot_velocity_phase_space(run_dir: Path) -> Path:
 
     fig.suptitle(f"{_meta(cfg_raw)['name']} — COM-frame velocity phase space", fontsize=11)
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_velocity_phase_space.png")
-    return run_dir / "v4_velocity_phase_space.png"
+    _savefig(fig, run_dir, "velocity_phase_space.png")
+    return run_dir / "velocity_phase_space.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -769,7 +769,7 @@ def plot_velocity_phase_space(run_dir: Path) -> Path:
 def plot_candidate_ranking(run_dir: Path, top_n: int = 30) -> Path:
     """Multi-panel scatter showing the top-N escaped samples by energy gain.
 
-    Replaces the v3 candidate_ranking_* figures using valid v4 metrics.
+    Replaces the v3 candidate_ranking_* figures using current scientific metrics.
     The mechanism-plane panel is intentionally omitted because its v3
     equivalent used energy_from_planet_orbit (ρ≈0.06 with true energy change).
     """
@@ -781,7 +781,7 @@ def plot_candidate_ranking(run_dir: Path, top_n: int = 30) -> Path:
                if r["outcome"] == "escaped"
                and r.get("energy_gain_dimensionless", "nan") not in ("nan", "")]
     if not escaped:
-        return run_dir / "v4_candidate_ranking.png"
+        return run_dir / "candidate_ranking.png"
 
     escaped.sort(key=lambda r: float(r["energy_gain_dimensionless"]), reverse=True)
     top = escaped[:top_n]
@@ -818,8 +818,8 @@ def plot_candidate_ranking(run_dir: Path, top_n: int = 30) -> Path:
     plt.colorbar(sc, ax=axes, label="v∞ (km/s)", shrink=0.8)
     fig.suptitle(f"{_meta(cfg_raw)['name']} — Top-{top_n} candidate ranking", fontsize=11)
     fig.subplots_adjust(right=0.88)
-    _savefig(fig, run_dir, "v4_candidate_ranking.png")
-    return run_dir / "v4_candidate_ranking.png"
+    _savefig(fig, run_dir, "candidate_ranking.png")
+    return run_dir / "candidate_ranking.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -844,7 +844,7 @@ def plot_trajectory_tracks(run_dir: Path, top_n: int = 10) -> Path:
         from .validation import physical_values
         from ..constants import G_KM
     except ImportError:
-        return run_dir / "v4_trajectory_tracks.png"
+        return run_dir / "trajectory_tracks.png"
 
     config = load_config(run_dir / "config.yaml")
     values = physical_values(config)
@@ -857,7 +857,7 @@ def plot_trajectory_tracks(run_dir: Path, top_n: int = 10) -> Path:
     candidates = escaped[:top_n]
 
     if not candidates:
-        return run_dir / "v4_trajectory_tracks.png"
+        return run_dir / "trajectory_tracks.png"
 
     gain_vals = np.array([float(r["energy_gain_dimensionless"]) for r in candidates])
     gain_min, gain_max = gain_vals.min(), gain_vals.max()
@@ -935,8 +935,8 @@ def plot_trajectory_tracks(run_dir: Path, top_n: int = 10) -> Path:
     ax.legend(fontsize=9)
     ax.set_aspect("equal")
     fig.tight_layout()
-    _savefig(fig, run_dir, "v4_trajectory_tracks.png")
-    return run_dir / "v4_trajectory_tracks.png"
+    _savefig(fig, run_dir, "trajectory_tracks.png")
+    return run_dir / "trajectory_tracks.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -966,7 +966,7 @@ def _pareto_mask(objectives: np.ndarray) -> np.ndarray:
 
 
 def plot_pareto_front(run_dir: Path) -> Path:
-    """Two-panel Pareto front using valid v4 metrics.
+    """Two-panel Pareto front using current scientific metrics.
 
     Panel 1: energy gain (↑) vs planet periapsis (↓ = closer = higher risk).
              The Pareto front marks trajectories where you cannot improve gain
@@ -993,7 +993,7 @@ def plot_pareto_front(run_dir: Path) -> Path:
                and r.get("periapsis_planet_km", "nan") not in ("nan", "")
                and r.get("deflection_rad", "nan") not in ("nan", "")]
     if not escaped:
-        return run_dir / "v4_pareto_front.png"
+        return run_dir / "pareto_front.png"
 
     gain = np.array([float(r["energy_gain_dimensionless"]) for r in escaped])
     peri = np.array([float(r["periapsis_planet_km"]) / AU_KM for r in escaped])
@@ -1051,8 +1051,8 @@ def plot_pareto_front(run_dir: Path) -> Path:
     plt.colorbar(sc, ax=axes, label="v∞ (km/s)", shrink=0.8)
     fig.suptitle(f"{_meta(cfg_raw)['name']} — Pareto fronts (escaped trajectories)", fontsize=11)
     fig.subplots_adjust(right=0.88)
-    _savefig(fig, run_dir, "v4_pareto_front.png")
-    return run_dir / "v4_pareto_front.png"
+    _savefig(fig, run_dir, "pareto_front.png")
+    return run_dir / "pareto_front.png"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1060,12 +1060,12 @@ def plot_pareto_front(run_dir: Path) -> Path:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def generate_all_plots(run_dir: str | Path, verbose: bool = True) -> list[Path]:
-    """Generate all v4 diagnostic figures for a completed campaign run.
+    """Generate all diagnostic figures for a completed campaign run.
 
     Parameters
     ----------
     run_dir:
-        Path to a v4 run directory containing manifest.json, samples.csv,
+        Path to a run directory containing manifest.json, samples.csv,
         and width_summary.csv.
     verbose:
         Print progress messages.
@@ -1081,7 +1081,7 @@ def generate_all_plots(run_dir: str | Path, verbose: bool = True) -> list[Path]:
 
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("schema_version") != 4:
-        raise ValueError("generate_all_plots requires a schema_version=4 run directory")
+        raise ValueError("generate_all_plots requires a current schema run directory")
 
     _, samples, _, cfg_raw = _load(run_dir)
     vinfs = sorted({float(r["v_inf_kms"]) for r in samples})

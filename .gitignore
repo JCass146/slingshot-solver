@@ -31,3 +31,12 @@ __pycache__/
 # OS files
 Thumbs.db
 .DS_Store
+
+# Evaluation and diagnostics helpers
+diagnostics/
+validate.py
+
+# Keep only primary project docs tracked
+*.md
+!README.md
+!CHANGELOG.md
