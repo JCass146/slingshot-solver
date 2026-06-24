@@ -220,18 +220,256 @@ def validate_rebound(config: V4Config) -> dict[str, Any]:
         float(integration.solution.t[-1]),
     )
     scipy_state = integration.solution.y[:12, -1]
-    relative = float(
-        np.linalg.norm(rebound_state - scipy_state)
-        / max(np.linalg.norm(scipy_state), 1.0)
+    # Compare periapsis, outbound direction, and energy gain rather than raw state norm
+    # to avoid comparisons dominated by large position coordinates.
+    dop_metrics = analyze_integration(
+        integration,
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["semi_major_axis_km"],
+        0.0,
     )
+    # Integrate the rebound state through to periapsis and back to boundary
+    # using the scipy integrator to produce metrics for comparison.
+    rebound_initial = np.concatenate([rebound_state, np.zeros(2)])
+    rebound_integration = integrate_encounter(
+        rebound_initial,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["star_radius_km"],
+        values["planet_radius_km"],
+        max(2.5 * values["semi_major_axis_km"], min(values["boundary_radius_km"], AU_KM)),
+        min(config.numerical.max_time_sec, 3.0e7),
+        method="DOP853",
+        rtol=min(config.numerical.rtol, 1e-10),
+        atol=min(config.numerical.atol, 1e-10),
+        softening_km=0.0,
+    )
+    reb_metrics = analyze_integration(
+        rebound_integration,
+        rebound_initial,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["semi_major_axis_km"],
+        0.0,
+    )
+    comparisons = {}
+    for key in ("delta_specific_energy_com", "periapsis_planet_km", "deflection_rad"):
+        first = float(dop_metrics[key])
+        second = float(reb_metrics[key])
+        comparisons[key] = abs(first - second) / max(abs(first), abs(second), 1.0)
+    relative = max(comparisons.values())
     tolerance = config.validation.integrator_agreement_relative_tolerance
     return {
         "name": "rebound_ias15_agreement",
         "passed": relative <= tolerance,
         "required": False,
         "skipped": False,
-        "relative_state_difference": relative,
+        "relative_comparisons": comparisons,
+        "max_relative_difference": relative,
         "tolerance": tolerance,
+    }
+
+
+def validate_boundary_radius_convergence(config: V4Config) -> dict[str, Any]:
+    """Diagnostic: verify that extending the outbound boundary by 50% leaves periapsis stable.
+
+    Both runs share the SAME initial state so binary phasing is identical; only the outbound
+    stopping radius differs.  Periapsis is boundary-independent and is the metric compared
+    here.  delta_specific_energy_com is NOT compared because at a finite boundary the measured
+    energy includes gravitational-potential contributions that change with boundary radius
+    (the work integral continues accumulating as the particle travels outward).  The
+    configured boundary_radius_au is used directly so the test reflects the actual campaign
+    conditions.  This gate is diagnostic (required=False); a failing result should prompt the
+    researcher to verify that boundary_radius_au is sufficiently large.
+    """
+    values = physical_values(config)
+    nominal_boundary = values["boundary_radius_km"]
+    total_mu = G_KM * (values["star_mass_kg"] + values["planet_mass_kg"])
+    position, velocity = state_at_inbound_boundary(
+        max(60.0, config.asymptotic_sampling.v_inf_kms[0]),
+        min(0.15 * AU_KM, 0.2 * values["b_max_km"]),
+        0.30,
+        nominal_boundary,
+        total_mu,
+    )
+    binary = init_binary_barycentric(
+        values["semi_major_axis_km"],
+        config.orbit.eccentricity,
+        1.2,
+        config.orbit.argument_periapsis_rad,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        config.orbit.prograde,
+        0.0,
+        0.0,
+    )
+    initial_state = np.concatenate([binary, position, velocity, np.zeros(2)])
+    max_t = max(config.numerical.max_time_sec, 6.0e7)
+    integration_nominal = integrate_encounter(
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["star_radius_km"],
+        values["planet_radius_km"],
+        nominal_boundary,
+        max_t,
+        method="DOP853",
+        rtol=min(config.numerical.rtol, 1e-10),
+        atol=min(config.numerical.atol, 1e-10),
+        softening_km=0.0,
+    )
+    metrics_nominal = analyze_integration(
+        integration_nominal,
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["semi_major_axis_km"],
+        0.0,
+    )
+    extended_boundary = 1.5 * nominal_boundary
+    integration_extended = integrate_encounter(
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["star_radius_km"],
+        values["planet_radius_km"],
+        extended_boundary,
+        max_t * 2.0,
+        method="DOP853",
+        rtol=min(config.numerical.rtol, 1e-10),
+        atol=min(config.numerical.atol, 1e-10),
+        softening_km=0.0,
+    )
+    metrics_extended = analyze_integration(
+        integration_extended,
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["semi_major_axis_km"],
+        0.0,
+    )
+    comparisons = {}
+    for key in ("periapsis_planet_km", "periapsis_star_km"):
+        first = float(metrics_nominal[key])
+        second = float(metrics_extended[key])
+        comparisons[key] = abs(first - second) / max(abs(first), abs(second), 1.0)
+    max_relative = max(comparisons.values())
+    tolerance = 1e-3
+    escaped_both = (
+        metrics_nominal["outcome"] == "escaped"
+        and metrics_extended["outcome"] == "escaped"
+    )
+    return {
+        "name": "boundary_radius_convergence",
+        "passed": escaped_both and max_relative <= tolerance,
+        "required": False,
+        "max_relative_difference": max_relative,
+        "tolerance": tolerance,
+        "comparisons": comparisons,
+        "nominal_boundary_km": nominal_boundary,
+        "extended_boundary_km": extended_boundary,
+    }
+
+
+def validate_tolerance_convergence(config: V4Config) -> dict[str, Any]:
+    """Diagnostic: verify that tightening tolerances by 100x leaves key metrics stable.
+
+    Uses the full configured boundary, not the 1 AU cap, so the test reflects campaign
+    conditions.  Compares periapsis, total work, and deflection since these are more
+    robust than COM-frame energy at a finite boundary.  Required=False: a failing result
+    should prompt the researcher to verify that rtol/atol are sufficiently tight.
+    """
+    values = physical_values(config)
+    nominal_boundary = values["boundary_radius_km"]
+    total_mu = G_KM * (values["star_mass_kg"] + values["planet_mass_kg"])
+    position, velocity = state_at_inbound_boundary(
+        max(60.0, config.asymptotic_sampling.v_inf_kms[0]),
+        min(0.15 * AU_KM, 0.2 * values["b_max_km"]),
+        0.30,
+        nominal_boundary,
+        total_mu,
+    )
+    binary = init_binary_barycentric(
+        values["semi_major_axis_km"],
+        config.orbit.eccentricity,
+        1.2,
+        config.orbit.argument_periapsis_rad,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        config.orbit.prograde,
+        0.0,
+        0.0,
+    )
+    initial_state = np.concatenate([binary, position, velocity, np.zeros(2)])
+    nominal_rtol = min(config.numerical.rtol, 1e-10)
+    nominal_atol = min(config.numerical.atol, 1e-10)
+    max_t = min(config.numerical.max_time_sec, 6.0e7)
+    integration_nominal = integrate_encounter(
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["star_radius_km"],
+        values["planet_radius_km"],
+        nominal_boundary,
+        max_t,
+        method="DOP853",
+        rtol=nominal_rtol,
+        atol=nominal_atol,
+        softening_km=0.0,
+    )
+    metrics_nominal = analyze_integration(
+        integration_nominal,
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["semi_major_axis_km"],
+        0.0,
+    )
+    tight_rtol = nominal_rtol * 1e-2
+    tight_atol = nominal_atol * 1e-2
+    integration_tight = integrate_encounter(
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["star_radius_km"],
+        values["planet_radius_km"],
+        nominal_boundary,
+        max_t,
+        method="DOP853",
+        rtol=tight_rtol,
+        atol=tight_atol,
+        softening_km=0.0,
+    )
+    metrics_tight = analyze_integration(
+        integration_tight,
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["semi_major_axis_km"],
+        0.0,
+    )
+    comparisons = {}
+    for key in ("periapsis_planet_km", "work_sum", "deflection_rad"):
+        first = float(metrics_nominal[key])
+        second = float(metrics_tight[key])
+        comparisons[key] = abs(first - second) / max(abs(first), abs(second), 1.0)
+    max_relative = max(comparisons.values())
+    tolerance = config.validation.integrator_agreement_relative_tolerance
+    escaped_both = (
+        metrics_nominal["outcome"] == "escaped"
+        and metrics_tight["outcome"] == "escaped"
+    )
+    return {
+        "name": "tolerance_convergence",
+        "passed": escaped_both and max_relative <= tolerance,
+        "required": False,
+        "max_relative_difference": max_relative,
+        "tolerance": tolerance,
+        "comparisons": comparisons,
+        "nominal_rtol": nominal_rtol,
+        "tight_rtol": tight_rtol,
     }
 
 
@@ -244,6 +482,8 @@ def run_publication_validation(config: V4Config) -> dict[str, Any]:
             validate_galilean_invariance(config),
             validate_integrator_agreement(config),
             validate_circular_jacobi(config),
+            validate_boundary_radius_convergence(config),
+            validate_tolerance_convergence(config),
             validate_rebound(config),
         ]
     )

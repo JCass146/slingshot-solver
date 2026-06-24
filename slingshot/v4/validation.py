@@ -131,17 +131,36 @@ def numerical_two_body_deflection(
         + impact_parameter_km**2 * v_inf_kms**4 / mu_km3_s2**2
     )
     analytic_deflection = 2.0 * np.arcsin(1.0 / eccentricity)
-    numerical_deflection = np.arccos(
-        np.clip(
-            np.dot(initial_velocity, final_velocity)
-            / (np.linalg.norm(initial_velocity) * np.linalg.norm(final_velocity)),
-            -1.0,
-            1.0,
+
+    # Compute asymptotic deflection from the outgoing orbit elements.
+    # For a pure-Keplerian hyperbola the eccentricity magnitude is constant;
+    # we recover it from the final state and use 2*arcsin(1/e_num) so that
+    # the comparison is asymptote-to-asymptote rather than
+    # finite-boundary-velocity-to-finite-boundary-velocity.
+    r_final = np.linalg.norm(final_position)
+    v_sq_final = float(np.dot(final_velocity, final_velocity))
+    rdotv_final = float(np.dot(final_position, final_velocity))
+    e_vec_final = (
+        (1.0 / mu_km3_s2)
+        * (
+            (v_sq_final - mu_km3_s2 / r_final) * final_position
+            - rdotv_final * final_velocity
         )
+    )
+    e_numerical = float(np.linalg.norm(e_vec_final))
+    # Guard against tiny rounding that makes arcsin argument exceed 1
+    numerical_asymptotic_deflection = 2.0 * np.arcsin(
+        np.clip(1.0 / max(e_numerical, 1.0 + 1e-15), 0.0, 1.0)
+    )
+
+    deflection_relative_error = float(
+        abs(numerical_asymptotic_deflection - analytic_deflection)
+        / max(abs(analytic_deflection), 1e-15)
     )
     return {
         "analytic_deflection_rad": float(analytic_deflection),
-        "numerical_boundary_deflection_rad": float(numerical_deflection),
+        "numerical_asymptotic_deflection_rad": float(numerical_asymptotic_deflection),
+        "deflection_relative_error": deflection_relative_error,
         "energy_relative_error": float(
             abs(final_energy - initial_energy) / max(abs(initial_energy), 1.0)
         ),
@@ -260,18 +279,18 @@ def run_quick_validation(config: V4Config) -> dict[str, Any]:
         boundary_radius_km=values["boundary_radius_km"],
         mu_km3_s2=G_KM * (values["star_mass_kg"] + values["planet_mass_kg"]),
     )
+    tol = config.validation.two_body_deflection_relative_tolerance
     deflection_passed = (
-        deflection["energy_relative_error"]
-        <= config.validation.two_body_deflection_relative_tolerance
-        and deflection["angular_momentum_relative_error"]
-        <= config.validation.two_body_deflection_relative_tolerance
+        deflection["energy_relative_error"] <= tol
+        and deflection["angular_momentum_relative_error"] <= tol
+        and deflection["deflection_relative_error"] <= tol
     )
     gates = [
         binary_gate,
         {
             "name": "two_body_invariants",
             "passed": deflection_passed,
-            "tolerance": config.validation.two_body_deflection_relative_tolerance,
+            "tolerance": tol,
             **deflection,
         },
         {

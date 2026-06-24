@@ -123,6 +123,9 @@ class ValidationConfig(BaseModel):
     work_energy_relative_tolerance: float = 1e-6
     integrator_agreement_relative_tolerance: float = 1e-5
     run_rebound_if_available: bool = True
+    # Campaign-level failure gates (P0.2)
+    max_time_limit_fraction: float = Field(default=0.05, ge=0.0, le=1.0)
+    max_numerical_failure_fraction: float = Field(default=0.01, ge=0.0, le=1.0)
 
 
 class MetadataConfig(BaseModel):

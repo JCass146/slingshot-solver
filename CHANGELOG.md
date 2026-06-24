@@ -4,6 +4,186 @@ All notable changes to the Slingshot Solver project.
 
 ---
 
+## v4.0.0 — June 2026
+
+### Major: v4 Research Core — Defensible Planar-Width Methodology
+
+Complete overhaul of the scientific methodology, statistical estimand, validation
+system, and diagnostic output layer. All changes in this release are driven by
+the findings of `METHODOLOGY_AUDIT.md` (June 2026).
+
+#### P0 — Required before scientific campaign claims
+
+**P0.1 — Fixed analytic two-body deflection gate** (`slingshot/v4/validation.py`)
+
+The previous `two_body_invariants` gate checked only energy and angular-momentum
+conservation at the finite boundary. The audit showed the numerical
+finite-boundary velocity angle differed from the true asymptotic deflection by
+~3 mrad — far larger than the 1e-6 tolerance — yet the gate passed because it
+never checked the angle.
+
+The gate now recovers the eccentricity vector from the final state and computes
+`2·arcsin(1/e_numerical)` — an asymptote-to-asymptote comparison that correctly
+converges to the analytic formula at the integration accuracy level.
+New field `numerical_asymptotic_deflection_rad` replaces `numerical_boundary_deflection_rad`.
+New regression test in `tests/test_v4_validation.py`.
+
+**P0.2 — Campaign gates for time limits and integration failures** (`campaign.py`, `config.py`)
+
+`ValidationConfig` gained `max_time_limit_fraction` (default 5%) and
+`max_numerical_failure_fraction` (default 1%). The campaign now tallies
+`outcome == "time_limit"` and non-success solver statuses, gates on both
+fractions, and records them in the manifest and report. Time-limited trajectories
+are counted as non-events in the width denominator; the gate warns when this
+becomes non-negligible.
+
+**P0.3 — Boundary-radius and tolerance convergence gates** (`gates.py`)
+
+Two new diagnostic gates added to `run_publication_validation`:
+
+- `boundary_radius_convergence`: runs the same initial state to nominal and
+  1.5× boundary; compares `periapsis_planet_km` and `periapsis_star_km` (the
+  only metrics that are genuinely boundary-independent at finite boundaries).
+  Energy gain is intentionally NOT compared here because the potential
+  contribution to the measured energy is significant at boundaries comparable
+  to the binary semi-major axis.
+- `tolerance_convergence`: same trajectory at nominal and 100× tighter
+  tolerances; compares periapsis, total work, and deflection.
+
+Both gates use the full configured boundary (not the 1 AU gate cap) and are
+marked `required=False` — they are diagnostics that inform the researcher
+without blocking the campaign.
+
+The REBOUND gate was also improved: it now compares `delta_specific_energy_com`,
+`periapsis_planet_km`, and `deflection_rad` directly, rather than the L2 norm
+of the full state vector (which is dominated by large position coordinates).
+
+**P0.4 — Tail check replaced with one-sided Wilson upper CI** (`statistics.py`)
+
+The previous tail check used a point estimate: `tail_event_fraction <= threshold`.
+Zero observed tail events auto-passed, which is incorrect — a zero count from a
+small outer-strip sample provides essentially no evidence of a negligible tail.
+
+`wilson_upper_bound()` added. `summarize_planar_widths` now computes
+`tail_fraction_upper_bound` — the one-sided Wilson upper CI on the outer-strip
+event *rate* — and gates on that bound rather than the point estimate.
+New fields `tail_zone_trials` and `tail_fraction_upper_bound` appear in every
+threshold row. New tests in `tests/test_v4_statistics.py` verify the
+zero-event case.
+
+**P0.5 — Corrected Quinn asymmetric uncertainty metadata** (`configs/v4_kepler432_quinn.yaml`)
+
+Quinn et al. (1411.4666) report asymmetric uncertainties. The previous config
+symmetrized the eccentricity (`±0.0097` instead of `+0.0098/−0.0089`), planet
+mass (`±0.32` instead of `+0.32/−0.18`), and planet radius. All three corrected.
+
+**P0.6 — Unified package and manifest versions** (`pyproject.toml`, `campaign.py`)
+
+`pyproject.toml` bumped from `3.0.0` to `4.0.0`. Build backend corrected from
+`setuptools.backends._legacy:_Backend` to `setuptools.build_meta` (the previous
+backend was unavailable in pip ≥26).
+
+`campaign.py` now reads the version from `importlib.metadata` at runtime, with
+a fallback that parses `pyproject.toml` directly when the package is not
+installed. The manifest `package_version` field is now always populated.
+
+#### P1 — Required before graduate-level statistical presentation
+
+**P1.2 — Seed-level variance and heterogeneity diagnostics** (`campaign.py`)
+
+After each combined v∞ summary, `_append_seed_variance_rows()` collects
+per-seed width estimates and appends `scope="seed_variance"` rows reporting
+`n_seeds`, `seed_mean_width_km`, `seed_std_width_km`, and `seed_heterogeneity`
+(between-seed std / pooled width). The report and the new `v4_seed_stability.png`
+figure surface these.
+
+**P1.3 — Independent RNG streams per (v∞, seed) pair** (`campaign.py`)
+
+The previous implementation called `np.random.default_rng(seed)` for every
+speed bin. This created *common random numbers* across bins: the same seed
+produced the same impact parameter, direction, and phase sequence regardless
+of v∞. Two speed bins starting from the same seed shared a correlated proposal
+population, which must either be declared as a paired CRN design or fixed.
+
+Each (v∞, seed) pair now derives a unique child stream via
+`np.random.SeedSequence([seed, hash(v_inf)])`, making all speed bins
+independently sampled.
+
+#### Configuration updates
+
+Both Kepler-432 configs updated:
+- `b_max_au: 1.0 → 3.0` AU — the first campaign showed the tail CI gate
+  correctly detected that events extended to the 1 AU boundary edge; 3 AU
+  provides adequate margin for Kepler-432.
+- `boundary_radius_au: 5.0 → 8.0` AU — must strictly exceed `b_max_au`.
+- `work_energy_relative_tolerance: 1e-6 → 1e-4` — DOP853 at rtol=1e-10
+  achieves ~2.6e-5 closure on the full sample population; 1e-6 was tighter
+  than the integrator can reliably deliver.
+- `max_time_limit_fraction: 0.05` and `max_numerical_failure_fraction: 0.01`
+  added explicitly.
+
+#### v4 Plotting module (`slingshot/v4/plotting.py`)
+
+16 diagnostic figures generated automatically at the end of every campaign run,
+all reading from `samples.csv` and `width_summary.csv` (no `results.pkl`).
+Also available standalone via `python run_v4.py plot <run_dir>`.
+
+| Figure | v3 equivalent | Key improvement |
+|---|---|---|
+| `v4_width_vs_vinf.png` | *(new)* | Primary estimand + per-seed points |
+| `v4_outcome_fractions.png` | `mc_summary_slingshot_outcomes.png` | Per speed bin, all outcomes |
+| `v4_collision_vs_escape.png` | *(new)* | Escape and collision widths overlaid |
+| `v4_tail_support.png` | *(new)* | Event rate vs \|b\|/b_max with CI |
+| `v4_seed_stability.png` | *(new)* | Per-seed curves vs pooled CI |
+| `v4_sampling_distributions.png` | `sampling_distribution_*.png` ×4 | Consolidated; acceptance overlay |
+| `v4_gain_ecdf.png` | `energy_cdf.png` | Fixed: single consistent metric |
+| `v4_deflection_distribution.png` | `mc_summary_deflection_distribution.png` | COM-frame; per speed bin |
+| `v4_velocity_phase_space.png` | `velocity_phase_space_vx_vy.png` | COM-frame (boost-invariant) |
+| `v4_phase_map.png` | `trajectory_phase_energy_planet.png` | Conditional mean, not max over hidden v |
+| `v4_periapsis_distributions.png` | `star_proximity_distribution_*.png` ×2 | Both bodies; log-scale |
+| `v4_work_energy_diagnostics.png` | *(new)* | Closure residuals; work fractions |
+| `v4_parameter_correlations.png` | `parameter_correlations_*.png` | Valid v4 metrics; coloured by v∞ |
+| `v4_candidate_ranking.png` | `candidate_ranking_*.png` | Top-30 by energy gain |
+| `v4_pareto_front.png` | `pareto_front_2d.png` | Fixed: valid metrics (not energy_from_planet_orbit) |
+| `v4_trajectory_tracks.png` | `trajectory_tracks_planet.png` | Re-integrated from asymptotic params |
+
+Five v3 figures intentionally excluded (audit-flagged as methodologically wrong
+or misleading):
+- `velocity_phase_space_radial_normal.png` — wrong radial basis (star-planet axis)
+- `scalar_vs_vector_tradeoff.png` — conflates turning quadratic with energy gain
+- `publication_objectives_obj*.png` ×6 — use `energy_from_planet_orbit` (ρ≈0.06)
+- `candidate_ranking_mechanism_plane.png` — same invalid metric
+- `parameter_correlations_vector_vs_scalar_delta_v.png` — collider bias + legacy metrics
+
+**New CLI subcommand:**
+
+```bash
+python run_v4.py plot <run_dir>   # Regenerate all figures for any existing run
+```
+
+#### Report (`slingshot/v4/report.py`)
+
+Completely rewritten. The report now includes:
+- Run metadata table (started, duration, version, commit, validation status)
+- Observational model and uncertainty table
+- Sampling and integration parameters
+- Full width table for all thresholds and all speed bins
+- Collision width table
+- Gain quantile table (median, Q90, Q95, Q99)
+- Seed-level variance table with heterogeneity
+- Campaign gate table (work-energy, tail CI, time-limit, numerical failure)
+- Quick gate table
+- Metric semantics reference table
+- All 16 figures with captions embedded inline (where generated)
+- Six numbered limitations
+
+#### Diagnostic script (`diagnostics/eval_latest_v4.py`)
+
+Structured command-line evaluation of the most recent v4 run, printing all
+width tables, outcome breakdown, seed variance, and campaign gate results.
+
+---
+
 ## v2.4.0 — February 2026
 
 ### Unified Pipeline & Report Auto-Generation

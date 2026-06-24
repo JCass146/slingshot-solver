@@ -26,6 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
         "validate", help="Run deterministic v4 validation gates"
     )
     validate_parser.add_argument("config")
+
+    plot_parser = subparsers.add_parser(
+        "plot", help="Generate diagnostic figures for an existing v4 run directory"
+    )
+    plot_parser.add_argument("run_dir", help="Path to a completed v4 run directory")
+    plot_parser.add_argument("--quiet", action="store_true")
     return parser
 
 
@@ -53,6 +59,12 @@ def main(argv=None):
         )
         if not args.quiet:
             print(f"Results: {Path(result['output_dir'])}")
+        return
+    if args.command == "plot":
+        from .plotting import generate_all_plots
+        generated = generate_all_plots(args.run_dir, verbose=not args.quiet)
+        if not args.quiet:
+            print(f"Generated {len(generated)} figures in {args.run_dir}")
         return
     parser.print_help()
     raise SystemExit(2)

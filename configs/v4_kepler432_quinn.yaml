@@ -19,8 +19,8 @@ orbit:
 
 asymptotic_sampling:
   v_inf_kms: [10.0, 20.0, 30.0, 40.0, 60.0, 80.0, 120.0]
-  b_max_au: 1.0
-  boundary_radius_au: 5.0
+  b_max_au: 3.0
+  boundary_radius_au: 8.0
   samples_per_bin: 2000
   seeds: [42, 43, 44, 45, 46]
   sample_incoming_direction: true
@@ -44,9 +44,11 @@ validation:
   binary_elements_relative_tolerance: 1.0e-10
   two_body_deflection_relative_tolerance: 1.0e-6
   jacobi_relative_tolerance: 1.0e-8
-  work_energy_relative_tolerance: 1.0e-6
+  work_energy_relative_tolerance: 1.0e-4
   integrator_agreement_relative_tolerance: 1.0e-5
   run_rebound_if_available: true
+  max_time_limit_fraction: 0.05
+  max_numerical_failure_fraction: 0.01
 
 metadata:
   case_name: kepler432_quinn2015
@@ -56,8 +58,8 @@ metadata:
   uncertainties:
     star_mass_msun: {minus: 0.07, plus: 0.10}
     star_radius_rsun: {minus: 0.08, plus: 0.12}
-    planet_mass_mjup: {minus: 0.32, plus: 0.32}
-    planet_radius_rjup: {minus: 0.039, plus: 0.039}
+    planet_mass_mjup: {minus: 0.18, plus: 0.32}
+    planet_radius_rjup: {minus: 0.039, plus: 0.050}
     semi_major_axis_au: {minus: 0.014, plus: 0.014}
-    eccentricity: {minus: 0.0097, plus: 0.0097}
+    eccentricity: {minus: 0.0089, plus: 0.0098}
   legacy_science_model: false

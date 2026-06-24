@@ -1,8 +1,8 @@
 # Slingshot Solver
 
 Slingshot Solver is a Python research project for studying planar gravitational
-scattering in a star-planet system. The repository now contains two versioned
-workflows:
+scattering in a restricted three-body star-planet system. The repository
+contains two versioned workflows:
 
 - **v4 research core** — the current scientific workflow for estimating
   effective planar encounter widths as a function of asymptotic speed.
@@ -11,11 +11,11 @@ workflows:
 
 The v4 core corrects the orbital initialization, asymptotic encounter proposal,
 energy definitions, event handling, statistical estimand, and validation
-strategy. Historical v3 runs remain readable, but they are not scientifically
-comparable with v4 results and are excluded from v4 aggregates.
+strategy. Historical v3 runs are readable but not scientifically comparable
+with v4 results and are excluded from v4 aggregates.
 
-**Units:** km, kg, and s throughout. Specific energies are reported in
-km²/s², equivalent to MJ/kg.
+**Units:** km, kg, and s throughout. Specific energies in km²/s² (= MJ/kg).
+**Package version:** 4.0.0
 
 ---
 
@@ -23,23 +23,19 @@ km²/s², equivalent to MJ/kg.
 
 The primary v4 result is an **effective planar encounter width**:
 
-\[
-W\left(\Delta\epsilon / v_c^2 > q \mid v_\infty\right)
-= 2b_{\max}\frac{N_{\mathrm{event}}}{N},
-\]
+$$W\!\left(\Delta\epsilon / v_c^2 > q \mid v_\infty\right) = 2b_{\max}\frac{N_{\mathrm{event}}}{N}$$
 
 where:
 
-- \(v_\infty\) is the incoming asymptotic speed;
-- \(b_{\max}\) defines the sampled signed-impact interval;
-- \(\Delta\epsilon\) is the test particle's specific-energy change in the
-  binary center-of-mass frame;
-- \(v_c^2 = G(M_\star + M_p)/a\) sets the dimensionless energy scale.
+- $v_\infty$ is the incoming asymptotic speed;
+- $b_{\max}$ defines the sampled signed-impact interval;
+- $\Delta\epsilon$ is the test particle's specific-energy change in the binary
+  center-of-mass (COM) frame;
+- $v_c^2 = G(M_\star + M_p)/a$ sets the dimensionless energy scale.
 
 This quantity is a one-dimensional width under a declared planar sampling
 proposal. It is **not** a three-dimensional area cross-section, astrophysical
-event probability, or occurrence rate. Those require a future 3D isotropic
-sampling model.
+event probability, or occurrence rate.
 
 ---
 
@@ -47,23 +43,26 @@ sampling model.
 
 - Eccentric Keplerian binary initialization from semi-major axis,
   eccentricity, mean anomaly, argument of periapsis, masses, and direction.
-- Proper inbound hyperbolic states defined by \(v_\infty\), signed impact
+- Proper inbound hyperbolic states defined by $v_\infty$, signed impact
   parameter, incoming direction, and a finite boundary radius.
 - Uniform sampling in signed impact parameter, incoming direction, and binary
-  mean anomaly, with mean anomaly corresponding to uniform observation time.
-- Center-of-mass scientific metrics that are invariant under Galilean boosts.
+  mean anomaly (mean anomaly = uniform observation time).
+- Center-of-mass scientific metrics invariant under Galilean boosts.
 - Root-event detection for stellar collision, planetary collision, outbound
   escape, and periapsis.
 - Separate work integrals for the moving stellar and planetary potentials,
-  with work-energy closure checks.
+  with work-energy closure checks per trajectory.
 - Wilson confidence intervals, collision widths, gain quantiles, and
-  impact-boundary tail checks.
-- DOP853 campaign integration, Radau cross-checks, and optional REBOUND IAS15
-  validation.
-- Versioned configurations, manifests, observational provenance, solver
-  diagnostics, and compact per-sample records.
-- Separate Kepler-432 models based on Quinn et al. and Ortiz et al., treated as
-  discrete observational-model uncertainty rather than pooled measurements.
+  one-sided confidence-bound tail gate.
+- DOP853 campaign integration; Radau cross-checks; optional REBOUND IAS15.
+- Versioned configurations, manifests, observational provenance, and compact
+  per-sample records.
+- Separate Kepler-432 models for Quinn et al. and Ortiz et al., treated as
+  discrete observational-model uncertainty.
+- Per-(v∞, seed) independent RNG streams for reproducibility.
+- Seed-level variance and heterogeneity diagnostics.
+- 16 automatically generated diagnostic figures per campaign run.
+- `python run_v4.py plot <run_dir>` to regenerate figures from any archived run.
 
 ---
 
@@ -93,55 +92,45 @@ python -m pip install rebound
 
 ### Validate a v4 Preset
 
-Run the fast deterministic checks:
+Run the fast deterministic checks (binary elements, deflection gate,
+Jacobi conservation, etc.):
 
 ```bash
 python run_v4.py validate configs/v4_kepler432_quinn.yaml
 ```
 
-Run the complete publication-gate set:
+Run the full publication-gate set (includes convergence diagnostics,
+Galilean invariance, integrator agreement):
 
 ```bash
 python validate_v4.py configs/v4_kepler432_quinn.yaml
 ```
 
-Add `--json` for machine-readable validation output:
-
-```bash
-python validate_v4.py configs/v4_kepler432_quinn.yaml --json
-```
-
-REBOUND IAS15 is optional. If it is not installed, that gate is reported as
-skipped rather than treated as a required failure.
-
 ### Run a Small Pilot
 
-Start with a small campaign before launching the full preset:
-
 ```bash
-python run_v4.py run configs/v4_kepler432_quinn.yaml \
+python run_v4.py run configs/v4_kepler432_ortiz.yaml \
   --samples-per-bin 100 \
-  --seeds 42 \
-  --output-dir results/v4_quinn_pilot
-```
-
-The `--seeds` option accepts comma-separated integers:
-
-```bash
-python run_v4.py run configs/v4_kepler432_quinn.yaml \
-  --samples-per-bin 100 \
-  --seeds 42,43,44
+  --seeds 42,43 \
+  --output-dir results/v4_ortiz_pilot
 ```
 
 ### Run the Configured Campaign
 
 ```bash
+python run_v4.py run configs/v4_kepler432_ortiz.yaml
 python run_v4.py run configs/v4_kepler432_quinn.yaml
 ```
 
-The Quinn and Ortiz presets each default to seven speed bins, five independent
-seeds, and 2,000 trajectories per seed: 70,000 trajectories per observational
-model.
+Each preset defaults to 7 speed bins × 5 seeds × 2,000 trajectories
+= 70,000 trajectories per observational model. Runtime is approximately
+2–3 hours on a modern laptop.
+
+### Regenerate Figures for an Existing Run
+
+```bash
+python run_v4.py plot results/v4_kepler432_ortiz2015_<timestamp>
+```
 
 ---
 
@@ -149,46 +138,44 @@ model.
 
 | Preset | Purpose |
 |---|---|
-| `configs/v4_dimensionless_reference.yaml` | General reference system for controlled tests and method development |
-| `configs/v4_kepler432_quinn.yaml` | Kepler-432 parameters from Quinn et al. |
-| `configs/v4_kepler432_ortiz.yaml` | Kepler-432 parameters from Ortiz et al. |
-
-The observational presets record their citation, parameter source, central
-values, and uncertainties in the configuration and run manifest.
+| `configs/v4_dimensionless_reference.yaml` | Dimensionless Jupiter-analog reference for method development |
+| `configs/v4_kepler432_quinn.yaml` | Kepler-432 b from Quinn et al. 2015 |
+| `configs/v4_kepler432_ortiz.yaml` | Kepler-432 b from Ortiz et al. 2015 |
 
 Quinn and Ortiz results should be compared side by side. They should not be
-combined into a single Gaussian posterior without a separate hierarchical
-model that justifies doing so.
+combined into a single posterior without a hierarchical model that justifies
+doing so.
 
 ---
 
 ## v4 Configuration
 
-Every v4 configuration declares `schema_version: 4` and uses explicit
-scientific sections:
+Every v4 configuration declares `schema_version: 4`:
 
 ```yaml
 schema_version: 4
 
 system:
-  name: Kepler-432 — Quinn et al.
-  star_mass_msun: 1.32
-  star_radius_rsun: 4.06
-  planet_mass_mjup: 5.41
-  planet_radius_rjup: 1.145
+  name: Kepler-432 — Ortiz et al.
+  star_mass_msun: 1.35
+  star_radius_rsun: 4.16
+  planet_mass_mjup: 5.84
+  planet_radius_rjup: 1.102
+  bulk_velocity_x_kms: 10.0   # Galilean invariance test
+  bulk_velocity_y_kms: 0.0
 
 orbit:
   model: keplerian
-  semi_major_axis_au: 0.301
-  eccentricity: 0.5134
+  semi_major_axis_au: 0.303
+  eccentricity: 0.478
   mean_anomaly_rad: 0.0
   argument_periapsis_rad: 0.0
   prograde: true
 
 asymptotic_sampling:
   v_inf_kms: [10, 20, 30, 40, 60, 80, 120]
-  b_max_au: 1.0
-  boundary_radius_au: 5.0
+  b_max_au: 3.0               # Must be large enough for tail gate to pass
+  boundary_radius_au: 8.0     # Must exceed b_max
   samples_per_bin: 2000
   seeds: [42, 43, 44, 45, 46]
 
@@ -202,11 +189,23 @@ numerical:
   method: DOP853
   rtol: 1.0e-10
   atol: 1.0e-10
-  softening_km: 0.0
+  softening_km: 0.0           # Newtonian; non-zero only for diagnostics
+
+validation:
+  work_energy_relative_tolerance: 1.0e-4
+  max_time_limit_fraction: 0.05
+  max_numerical_failure_fraction: 0.01
 ```
 
-Newtonian gravity with `softening_km: 0` is the scientific default. Softened
-runs are diagnostic and should not be presented as primary results.
+**Key configuration notes:**
+
+- `b_max_au` must be large enough that the outer-10%-strip event rate is
+  near zero. The tail CI gate enforces this; increase `b_max_au` if it fails.
+- `boundary_radius_au` must strictly exceed `b_max_au`.
+- `work_energy_relative_tolerance: 1e-4` is appropriate for DOP853 at
+  `rtol=atol=1e-10`. The tolerance `1e-6` is tighter than the integrator
+  can deliver across the full sample population.
+- `softening_km: 0.0` is mandatory for scientific runs.
 
 ---
 
@@ -216,121 +215,120 @@ runs are diagnostic and should not be presented as primary results.
 
 The star and planet are initialized in barycentric coordinates from the
 configured Keplerian elements. Scientific quantities are measured in the
-binary center-of-mass frame. A configured bulk velocity changes presentation
-coordinates only.
+binary center-of-mass frame.
 
 ### 2. Asymptotic Proposal
 
-For each fixed \(v_\infty\) bin, v4 samples:
+For each fixed $v_\infty$ bin, v4 samples:
 
-- signed impact parameter uniformly over \([-b_{\max}, b_{\max}]\);
-- incoming direction uniformly over \([0, 2\pi)\);
-- binary mean anomaly uniformly over \([0, 2\pi)\).
+- signed impact parameter uniformly over $[-b_{\max}, b_{\max}]$;
+- incoming direction uniformly over $[0, 2\pi)$;
+- binary mean anomaly uniformly over $[0, 2\pi)$.
+
+Each (v_inf, seed) pair gets an independent child RNG stream derived via
+`numpy.random.SeedSequence`, so speed bins do not share common random numbers.
 
 The asymptotic energy and angular momentum are mapped analytically onto a
 finite inbound boundary using the total-mass monopole.
 
 ### 3. Integration and Outcomes
 
-Campaigns use SciPy's DOP853 integrator. Root events classify:
+Campaigns use SciPy DOP853 (default) or Radau. Root events classify:
 
-- outbound escape;
+- outbound escape (primary event);
 - stellar collision;
 - planetary collision;
-- close approach and periapsis.
-
-Radau reruns selected reference trajectories as an independent internal
-cross-check. REBOUND IAS15 can provide an additional optional comparison.
+- close approach and periapsis (non-terminal; tracked).
 
 ### 4. Scientific Metrics
 
 The primary gain metric is:
 
-```text
-delta_specific_energy_com = epsilon_out - epsilon_in
+```
+delta_specific_energy_com = epsilon_out - epsilon_in  [km²/s²]
+energy_gain_dimensionless  = delta_specific_energy_com / vc²
 ```
 
-Additional outputs include:
-
-- `delta_v_inf`;
-- `delta_speed_com`;
-- deflection angle;
-- stellar and planetary periapsis;
-- collision outcome;
-- `work_star` and `work_planet`;
-- continuous stellar and planetary work fractions;
-- solver success, status, evaluations, and integration time.
-
-`turning_quadratic = 0.5 * |v_out - v_in|²` is retained only as a turning
-diagnostic. It is not interpreted as an energy gain.
+`turning_quadratic = 0.5 * ||v_out - v_in||²` is retained only as a turning
+diagnostic. It is **not** interpreted as energy gain.
 
 ### 5. Statistical Summary
 
-For every speed and dimensionless energy threshold, v4 reports:
+For every (speed, threshold) pair, v4 reports:
 
-- effective planar width;
-- Wilson confidence interval;
+- effective planar width W with Wilson CI;
 - event count and effective sample size;
-- median escaped gain and upper gain quantiles;
+- median escaped gain and gain quantiles (Q90, Q95, Q99);
 - collision width;
-- outer-impact tail contribution.
+- one-sided Wilson upper CI on the outer-10%-strip event rate (tail gate).
 
-If the outer 10% of sampled impact parameters contributes materially to the
-event count, the boundary-tail gate fails and `b_max` should be increased.
-Sample maxima are not reported as converged physical limits.
+Between-seed variance and heterogeneity are reported in `width_summary.csv`
+under `scope=seed_variance`.
 
 ---
 
 ## Run Artifacts
 
-Each v4 campaign writes a compact, reproducible directory:
+Each v4 campaign writes:
 
 ```text
 results/v4_<case>_<timestamp>/
-├── config.yaml
-├── samples.csv
-├── width_summary.csv
-├── manifest.json
-└── REPORT.md
+├── config.yaml              # Frozen schema-v4 configuration
+├── samples.csv              # Proposal vars, outcomes, metrics, work, solver diagnostics
+├── width_summary.csv        # Per-seed, combined, and seed-variance width rows
+├── manifest.json            # Schema, version, commit, seeds, gates, provenance
+├── REPORT.md                # Comprehensive report with all tables and figures
+├── v4_width_vs_vinf.png     # Primary estimand: W(v∞) with CI and seed points
+├── v4_outcome_fractions.png # Stacked outcome bars per speed bin
+├── v4_collision_vs_escape.png
+├── v4_tail_support.png
+├── v4_seed_stability.png
+├── v4_sampling_distributions.png
+├── v4_gain_ecdf.png
+├── v4_deflection_distribution.png
+├── v4_velocity_phase_space.png
+├── v4_phase_map.png         # Conditional mean gain over (b, binary phase)
+├── v4_periapsis_distributions.png
+├── v4_work_energy_diagnostics.png
+├── v4_parameter_correlations.png
+├── v4_candidate_ranking.png
+├── v4_pareto_front.png      # Two Pareto fronts using valid v4 metrics
+└── v4_trajectory_tracks.png # Top-10 re-integrated trajectories in planet frame
 ```
-
-| Artifact | Contents |
-|---|---|
-| `config.yaml` | Frozen schema-v4 configuration used by the run |
-| `samples.csv` | Proposal variables, outcomes, metrics, work terms, and solver diagnostics |
-| `width_summary.csv` | Per-seed and combined widths, confidence intervals, quantiles, and tail checks |
-| `manifest.json` | Schema, package version, Git commit, seeds, speed bins, integrator, provenance, artifacts, and validation status |
-| `REPORT.md` | Interpretation-safe summary of widths, metrics, limitations, and validation |
-
-The compact v4 format intentionally does not retain every coarse ODE
-trajectory. Reproducibility comes from the frozen configuration, proposal
-variables, seed, code revision, and numerical metadata.
 
 ---
 
-## Validation
+## Validation System
 
 The v4 validation system checks:
 
-- recovery of the configured binary semi-major axis and eccentricity;
-- central-force energy and angular-momentum conservation;
-- Newtonian zero-softening configuration;
-- circular restricted-problem Jacobi conservation;
-- Galilean invariance of center-of-mass metrics;
-- moving-potential work-energy closure;
-- DOP853 and Radau agreement;
-- optional REBOUND IAS15 agreement;
-- campaign-level work closure and impact-boundary tails.
+| Gate | Type | Description |
+|---|---|---|
+| `binary_elements` | Required | Recovery of configured semi-major axis and eccentricity |
+| `two_body_invariants` | Required | Asymptotic deflection, energy, and angular-momentum conservation |
+| `newtonian_default` | Required | Zero softening enforced |
+| `work_energy_closure` | Required | Moving-potential work matches energy change |
+| `galilean_invariance` | Required | COM metrics unchanged under bulk-velocity boost |
+| `dop853_radau_agreement` | Required | DOP853 and Radau give consistent results |
+| `circular_jacobi_conservation` | Required | Jacobi constant conserved in circular case |
+| `boundary_radius_convergence` | Diagnostic | Periapsis stable under 1.5× boundary extension |
+| `tolerance_convergence` | Diagnostic | Periapsis and work stable under 100× tighter tolerances |
+| `rebound_ias15_agreement` | Diagnostic | Optional REBOUND IAS15 cross-check |
 
-Run the full test suite with:
+Campaign-level gates:
+
+| Gate | Description |
+|---|---|
+| Work-energy closure | Max relative error across all samples ≤ configured tolerance |
+| Tail CI | One-sided Wilson upper bound on outer-strip event rate ≤ `max_tail_event_fraction` |
+| Time-limit fraction | Fraction of time-limited trajectories ≤ `max_time_limit_fraction` |
+| Numerical failure fraction | Fraction of failed integrations ≤ `max_numerical_failure_fraction` |
+
+Run the test suite:
 
 ```bash
 pytest -q
 ```
-
-Current validated baseline: **122 passed, 1 skipped**. The skip corresponds to
-an optional environment-dependent path. Remaining warnings come from legacy
-v3 NumPy two-dimensional cross-product calls, not the v4 core.
 
 ---
 
@@ -340,72 +338,59 @@ v3 NumPy two-dimensional cross-product calls, not the v4 core.
 slingshot-solver/
 ├── slingshot/
 │   ├── v4/
-│   │   ├── config.py       # Schema-v4 configuration and serialization
-│   │   ├── dynamics.py     # Keplerian binary and event-driven integration
+│   │   ├── config.py       # Schema-v4 Pydantic models and serialization
+│   │   ├── dynamics.py     # Keplerian binary init and event-driven integration
 │   │   ├── sampling.py     # Asymptotic hyperbolic proposal
-│   │   ├── metrics.py      # COM metrics and work accounting
-│   │   ├── statistics.py   # Planar widths and Wilson intervals
-│   │   ├── validation.py   # Fast deterministic checks
-│   │   ├── gates.py        # Publication validation gates
-│   │   ├── campaign.py     # Campaign runner and artifacts
-│   │   ├── report.py       # v4 scientific report
-│   │   └── runs.py         # Version-aware run discovery
+│   │   ├── metrics.py      # COM metrics and moving-potential work accounting
+│   │   ├── statistics.py   # Wilson intervals, planar widths, tail CI gate
+│   │   ├── validation.py   # Fast deterministic checks (binary, two-body, Jacobi)
+│   │   ├── gates.py        # Publication gates (work-energy, Galilean, convergence)
+│   │   ├── campaign.py     # Campaign runner, artifacts, seed variance
+│   │   ├── report.py       # Comprehensive report with all tables and figure refs
+│   │   ├── plotting.py     # 16 diagnostic figures from CSV artifacts
+│   │   ├── runs.py         # Version-aware run discovery
+│   │   └── cli.py          # run / validate / plot subcommands
 │   ├── core/               # Legacy v3 dynamics and two-body tools
 │   ├── analysis/           # Legacy v3 Monte Carlo and diagnostics
 │   └── output/             # Legacy v3 plots, reports, and animation
 ├── configs/
+│   ├── v4_kepler432_ortiz.yaml
+│   ├── v4_kepler432_quinn.yaml
+│   └── v4_dimensionless_reference.yaml
+├── diagnostics/
+│   └── eval_latest_v4.py   # Structured evaluation of most recent v4 run
 ├── tests/
-├── run_v4.py
-├── validate_v4.py
-├── run.py                  # Legacy v3 CLI wrapper
-└── V4_README.md            # Focused v4 methodology notes
+├── run_v4.py               # v4 entry point (run / validate / plot)
+├── validate_v4.py          # Full publication-gate runner
+└── run.py                  # Legacy v3 CLI wrapper
 ```
 
 ---
 
 ## Legacy v3 Workflow
 
-The v3 pipeline remains available for historical analysis, visualization, and
-exploratory candidate studies:
-
-```bash
-slingshot configs/config_kepler432_case.yaml
-```
-
-or:
+The v3 pipeline remains available for historical analysis:
 
 ```bash
 python run.py configs/config_kepler432_case.yaml
 ```
 
-It can still generate ranked candidates, diagnostic plots, animations,
-pickled trajectory data, and run comparisons:
+Existing v3 directories are recognized by `slingshot.v4.runs.classify_run()`
+and marked `legacy_science_model: true`. `discover_v4_runs()` returns only
+eligible v4 runs.
 
-```bash
-slingshot compare results/run_a results/run_b
-```
-
-Existing v3 directories are recognized by
-`slingshot.v4.runs.classify_run()` and marked
-`legacy_science_model: true`. `discover_v4_runs()` returns only eligible v4
-runs, preventing accidental aggregation across incompatible scientific
-models.
-
-Use v3 outputs as legacy exploratory artifacts. New scientific conclusions
-about encounter gain versus asymptotic speed should use the v4 workflow.
+**v3 results should not be presented as scientific conclusions about Kepler-432 b.
+All known limitations are documented in `METHODOLOGY_AUDIT.md`.**
 
 ---
 
 ## Known Limits and Roadmap
 
-- The current research core is planar, not fully three-dimensional.
-- The reported width is proposal-dependent and must include its sampling
-  definition.
-- Astrophysical rates require a separate population model and are deferred.
-- Physical area cross-sections require isotropic 3D sampling and are deferred.
-- Quinn and Ortiz represent discrete observational-model uncertainty.
-- IAS15 validation requires the optional REBOUND dependency.
-- Full 3D effective cross-sections are the next major scientific milestone.
+- The current core is planar. 3D isotropic cross-sections are the next major milestone.
+- Reported widths are proposal-dependent and must include their sampling definition.
+- Astrophysical rates require an external velocity distribution and are deferred.
+- Quinn and Ortiz represent discrete observational-model uncertainty, not a posterior.
+- REBOUND IAS15 validation requires the optional REBOUND package.
 
 ---
 
@@ -413,5 +398,4 @@ about encounter gain versus asymptotic speed should use the v4 workflow.
 
 MIT
 
-**Repository status:** v4 scientific research core with a retained v3 legacy
-pipeline.
+**Repository status:** v4 scientific research core (4.0.0) with retained v3 legacy pipeline.

@@ -29,6 +29,33 @@ def wilson_interval(
     return max(0.0, center - half_width), min(1.0, center + half_width)
 
 
+def wilson_upper_bound(
+    successes: int, trials: int, confidence_level: float = 0.95
+) -> float:
+    """One-sided Wilson upper confidence bound for a binomial proportion.
+
+    Used for the tail-support gate when event counts are small or zero: a zero
+    observation does NOT mean the tail contribution is negligible — we report
+    the upper bound so the gate can require that even the upper bound is below
+    the declared threshold.
+    """
+    if trials <= 0:
+        return np.nan
+    z_score = NormalDist().inv_cdf(confidence_level)
+    proportion = successes / trials
+    denominator = 1.0 + z_score**2 / trials
+    center = (proportion + z_score**2 / (2.0 * trials)) / denominator
+    half_width = (
+        z_score
+        * np.sqrt(
+            proportion * (1.0 - proportion) / trials
+            + z_score**2 / (4.0 * trials**2)
+        )
+        / denominator
+    )
+    return float(min(1.0, center + half_width))
+
+
 def planar_width_interval(
     successes: int,
     trials: int,
@@ -84,7 +111,26 @@ def summarize_planar_widths(
             and abs(float(row["impact_parameter_km"])) >= tail_limit
             for row, event in zip(rows, event_mask)
         )
+        # Outer-strip trials: samples whose |b| falls in the outer tail zone
+        tail_zone_trials = sum(
+            1 for row in rows
+            if abs(float(row["impact_parameter_km"])) >= tail_limit
+        )
+        # Use one-sided upper Wilson bound so that zero observed tail events
+        # does NOT automatically pass — require the upper bound to be below
+        # the declared threshold.
+        tail_fraction_upper_bound = wilson_upper_bound(
+            int(tail_events),
+            max(tail_zone_trials, 1),
+            confidence_level,
+        )
         tail_event_fraction = tail_events / event_count if event_count else 0.0
+        # Gate passes only when the upper CI bound is below the threshold AND
+        # there are enough outer-strip trials to be informative.
+        tail_check_passed = (
+            tail_zone_trials > 0
+            and tail_fraction_upper_bound <= max_tail_event_fraction
+        )
         output.append(
             {
                 "statistic": "energy_threshold",
@@ -96,8 +142,10 @@ def summarize_planar_widths(
                 "width_low_km": width_low,
                 "width_high_km": width_high,
                 "tail_events": int(tail_events),
+                "tail_zone_trials": int(tail_zone_trials),
                 "tail_event_fraction": float(tail_event_fraction),
-                "tail_check_passed": tail_event_fraction <= max_tail_event_fraction,
+                "tail_fraction_upper_bound": float(tail_fraction_upper_bound),
+                "tail_check_passed": tail_check_passed,
                 "median_gain": (
                     float(np.median(escaped_gains)) if escaped_gains.size else np.nan
                 ),
