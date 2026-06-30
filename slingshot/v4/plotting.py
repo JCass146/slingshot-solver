@@ -766,182 +766,448 @@ def plot_velocity_phase_space(run_dir: Path) -> Path:
 # 14. Top-N candidate ranking  (replaces candidate_ranking_* figures)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def plot_candidate_ranking(run_dir: Path, top_n: int = 30) -> Path:
-    """Multi-panel scatter showing the top-N escaped samples by energy gain.
-
-    Replaces the v3 candidate_ranking_* figures using current scientific metrics.
-    The mechanism-plane panel is intentionally omitted because its v3
-    equivalent used energy_from_planet_orbit (ρ≈0.06 with true energy change).
-    """
-    _require_mpl()
-    run_dir = Path(run_dir)
-    manifest, samples, _, cfg_raw = _load(run_dir)
-
-    escaped = [r for r in samples
-               if r["outcome"] == "escaped"
-               and r.get("energy_gain_dimensionless", "nan") not in ("nan", "")]
-    if not escaped:
-        return run_dir / "candidate_ranking.png"
-
-    escaped.sort(key=lambda r: float(r["energy_gain_dimensionless"]), reverse=True)
-    top = escaped[:top_n]
-    ranks = np.arange(1, len(top) + 1)
-
-    gain = np.array([float(r["energy_gain_dimensionless"]) for r in top])
-    defl = np.abs(np.degrees([float(r["deflection_rad"]) for r in top]))
-    peri_p = np.array([float(r["periapsis_planet_km"]) / AU_KM for r in top])
-    peri_s = np.array([float(r["periapsis_star_km"]) / AU_KM for r in top])
-    v_vals = np.array([float(r["v_inf_kms"]) for r in top])
-    cmap = plt.cm.plasma
-    norm = plt.Normalize(v_vals.min(), v_vals.max())
-
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
-    sc_kw = dict(c=v_vals, cmap=cmap, norm=norm, s=40, zorder=3)
-
-    sc = axes[0].scatter(ranks, gain, **sc_kw)
-    axes[0].set_xlabel("Rank (by Δε/vc²)")
-    axes[0].set_ylabel("Δε / vc²")
-    axes[0].set_title(f"Top {top_n} by energy gain")
-    axes[0].axhline(0, color="gray", lw=0.5)
-
-    axes[1].scatter(ranks, defl, **sc_kw)
-    axes[1].set_xlabel("Rank (by Δε/vc²)")
-    axes[1].set_ylabel("|Deflection| (°)")
-    axes[1].set_title("Deflection of top candidates")
-
-    axes[2].scatter(ranks, peri_p, **sc_kw)
-    axes[2].set_yscale("log")
-    axes[2].set_xlabel("Rank (by Δε/vc²)")
-    axes[2].set_ylabel("Planet periapsis (AU)")
-    axes[2].set_title("Planet periapsis of top candidates")
-
-    plt.colorbar(sc, ax=axes, label="v∞ (km/s)", shrink=0.8)
-    fig.suptitle(f"{_meta(cfg_raw)['name']} — Top-{top_n} candidate ranking", fontsize=11)
-    fig.subplots_adjust(right=0.88)
-    _savefig(fig, run_dir, "candidate_ranking.png")
-    return run_dir / "candidate_ranking.png"
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 15. Trajectory tracks  (top-N candidates re-integrated from stored params)
-# ──────────────────────────────────────────────────────────────────────────────
-
-def plot_trajectory_tracks(run_dir: Path, top_n: int = 10) -> Path:
-    """Re-integrate the top-N escaped samples and plot trajectories in planet frame.
-
-    All initial conditions are reconstructed from the asymptotic parameters
-    stored in samples.csv (v_inf_kms, impact_parameter_km, incoming_direction_rad,
-    binary_mean_anomaly_rad) so no results.pkl is needed.
-    """
-    _require_mpl()
-    run_dir = Path(run_dir)
-    manifest, samples, _, cfg_raw = _load(run_dir)
-
+def _float(row: dict, key: str, default: float = np.nan) -> float:
+    value = row.get(key, default)
+    if value in ("", None, "nan", "NaN"):
+        return default
     try:
-        from .config import load_config
-        from .dynamics import init_binary_barycentric, integrate_encounter
-        from .sampling import state_at_inbound_boundary
-        from .validation import physical_values
-        from ..constants import G_KM
-    except ImportError:
-        return run_dir / "trajectory_tracks.png"
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _candidate_top_n(cfg_raw: dict, default: int = 30) -> int:
+    try:
+        return int(cfg_raw.get("candidate_diagnostics", {}).get("top_n", default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _candidate_track_top_n(cfg_raw: dict, default: int = 10) -> int:
+    try:
+        return int(cfg_raw.get("candidate_diagnostics", {}).get("trajectory_top_n", default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _ensure_top_candidates(run_dir: Path, top_n: int = 30) -> list[dict]:
+    from .candidates import load_top_candidates, write_top_candidates_for_run
+
+    run_dir = Path(run_dir)
+    rows = load_top_candidates(run_dir)
+    if rows:
+        return rows[:top_n]
+    return write_top_candidates_for_run(run_dir, top_n=top_n)
+
+
+def _integrate_candidate_row(run_dir: Path, row: dict):
+    from .config import load_config
+    from .dynamics import init_binary_barycentric, integrate_encounter
+    from .sampling import state_at_inbound_boundary
+    from .validation import physical_values
+    from ..constants import G_KM
 
     config = load_config(run_dir / "config.yaml")
     values = physical_values(config)
     total_mu = G_KM * (values["star_mass_kg"] + values["planet_mass_kg"])
+    pos, vel = state_at_inbound_boundary(
+        _float(row, "v_inf_kms"),
+        _float(row, "impact_parameter_km"),
+        _float(row, "incoming_direction_rad"),
+        values["boundary_radius_km"],
+        total_mu,
+    )
+    binary = init_binary_barycentric(
+        values["semi_major_axis_km"],
+        config.orbit.eccentricity,
+        _float(row, "binary_mean_anomaly_rad"),
+        config.orbit.argument_periapsis_rad,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        config.orbit.prograde,
+        config.system.bulk_velocity_x_kms,
+        config.system.bulk_velocity_y_kms,
+    )
+    bulk = np.array([config.system.bulk_velocity_x_kms, config.system.bulk_velocity_y_kms])
+    initial_state = np.concatenate([binary, pos, vel + bulk, np.zeros(2)])
+    integration = integrate_encounter(
+        initial_state,
+        values["star_mass_kg"],
+        values["planet_mass_kg"],
+        values["star_radius_km"],
+        values["planet_radius_km"],
+        values["boundary_radius_km"],
+        config.numerical.max_time_sec,
+        method=config.numerical.method,
+        rtol=config.numerical.rtol,
+        atol=config.numerical.atol,
+        softening_km=config.numerical.softening_km,
+        max_step_sec=config.numerical.max_step_sec,
+    )
+    return config, values, integration
 
-    escaped = [r for r in samples
-               if r["outcome"] == "escaped"
-               and r.get("energy_gain_dimensionless", "nan") not in ("nan", "")]
-    escaped.sort(key=lambda r: float(r["energy_gain_dimensionless"]), reverse=True)
-    candidates = escaped[:top_n]
 
+def _unavailable_figure(run_dir: Path, filename: str, title: str, message: str) -> Path:
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.text(0.5, 0.55, title, ha="center", va="center", fontsize=13, weight="bold")
+    ax.text(0.5, 0.42, message, ha="center", va="center", fontsize=10)
+    ax.set_axis_off()
+    fig.tight_layout()
+    _savefig(fig, run_dir, filename)
+    return run_dir / filename
+
+
+def _candidate_ranking_data(run_dir: Path, cfg_raw: dict, top_n: Optional[int] = None) -> dict:
+    top_n = _candidate_top_n(cfg_raw) if top_n is None else int(top_n)
+    top = _ensure_top_candidates(run_dir, top_n=top_n)
+    if not top:
+        return {"top": []}
+
+    v_vals = np.array([_float(r, "v_inf_kms") for r in top])
+    vmin = np.nanmin(v_vals)
+    vmax = np.nanmax(v_vals)
+    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+        vmin, vmax = 0.0, max(1.0, vmin + 1.0 if np.isfinite(vmin) else 1.0)
+    closure_raw = np.array([_float(r, "work_energy_closure_relative") for r in top])
+    return {
+        "top": top,
+        "ranks": np.array([int(float(r.get("rank", i + 1))) for i, r in enumerate(top)]),
+        "gain": np.array([_float(r, "energy_gain_dimensionless") for r in top]),
+        "delta_e": np.array([_float(r, "delta_specific_energy_com") for r in top]),
+        "turning": np.array([_float(r, "turning_quadratic") for r in top]),
+        "deflection": np.abs(np.array([_float(r, "deflection_deg") for r in top])),
+        "periapsis_planet_au": np.array([_float(r, "periapsis_planet_km") / AU_KM for r in top]),
+        "closure": np.where(np.isfinite(closure_raw), np.maximum(closure_raw, 1e-16), np.nan),
+        "v_vals": v_vals,
+        "norm": plt.Normalize(vmin, vmax),
+    }
+
+
+_CANDIDATE_PANEL_FILENAMES = [
+    "candidate_ranking_gain.png",
+    "candidate_ranking_delta_energy.png",
+    "candidate_ranking_turning.png",
+    "candidate_ranking_deflection.png",
+    "candidate_ranking_periapsis.png",
+    "candidate_ranking_closure.png",
+]
+
+
+def _candidate_panel_specs(data: dict) -> list[dict]:
+    return [
+        {
+            "filename": "candidate_ranking_gain.png",
+            "title": "COM energy gain",
+            "ylabel": "Delta epsilon / vc^2",
+            "values": data["gain"],
+            "zero_line": True,
+        },
+        {
+            "filename": "candidate_ranking_delta_energy.png",
+            "title": "True specific-energy change",
+            "ylabel": "Delta epsilon (km^2/s^2)",
+            "values": data["delta_e"],
+            "zero_line": True,
+        },
+        {
+            "filename": "candidate_ranking_turning.png",
+            "title": "Turning diagnostic only",
+            "ylabel": "0.5 |Delta V|^2",
+            "values": data["turning"],
+        },
+        {
+            "filename": "candidate_ranking_deflection.png",
+            "title": "Deflection",
+            "ylabel": "|Deflection| (deg)",
+            "values": data["deflection"],
+        },
+        {
+            "filename": "candidate_ranking_periapsis.png",
+            "title": "Encounter depth",
+            "ylabel": "Planet periapsis (AU)",
+            "values": data["periapsis_planet_au"],
+            "yscale": "log",
+        },
+        {
+            "filename": "candidate_ranking_closure.png",
+            "title": "Work-energy closure",
+            "ylabel": "Closure relative error",
+            "values": data["closure"],
+            "yscale": "log",
+        },
+    ]
+
+
+def _plot_candidate_panel(run_dir: Path, data: dict, spec: dict, cfg_raw: dict) -> Path:
+    fig, ax = plt.subplots(figsize=(7.5, 5.0))
+    sc = ax.scatter(
+        data["ranks"],
+        spec["values"],
+        c=data["v_vals"],
+        cmap=plt.cm.plasma,
+        norm=data["norm"],
+        s=42,
+        zorder=3,
+    )
+    if spec.get("zero_line"):
+        ax.axhline(0, color="gray", lw=0.7)
+    if spec.get("yscale"):
+        ax.set_yscale(spec["yscale"])
+    ax.set_xlabel("Rank by energy gain")
+    ax.set_ylabel(spec["ylabel"])
+    ax.set_title(f"{_meta(cfg_raw)['name']} - {spec['title']}")
+    ax.grid(True, alpha=0.2)
+    plt.colorbar(sc, ax=ax, label="v_inf (km/s)")
+    fig.tight_layout()
+    _savefig(fig, run_dir, spec["filename"])
+    return run_dir / spec["filename"]
+
+
+def plot_candidate_ranking(run_dir: Path, top_n: Optional[int] = None) -> Path:
+    """Top-candidate diagnostics using current v4 energy metrics."""
+    _require_mpl()
+    run_dir = Path(run_dir)
+    manifest, _, _, cfg_raw = _load(run_dir)
+    data = _candidate_ranking_data(run_dir, cfg_raw, top_n)
+    top = data["top"]
+    if not top:
+        return _unavailable_figure(
+            run_dir,
+            "candidate_ranking.png",
+            "No eligible top candidates",
+            "No escaped solver-successful samples with finite COM energy gain were available.",
+        )
+
+    cmap = plt.cm.plasma
+    sc_kw = dict(c=data["v_vals"], cmap=cmap, norm=data["norm"], s=34, zorder=3)
+
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+    axes = axes.ravel()
+    sc = axes[0].scatter(data["ranks"], data["gain"], **sc_kw)
+    axes[0].set_ylabel("Delta epsilon / vc^2")
+    axes[0].set_title("COM energy gain")
+    axes[0].axhline(0, color="gray", lw=0.6)
+
+    axes[1].scatter(data["ranks"], data["delta_e"], **sc_kw)
+    axes[1].set_ylabel("Delta epsilon (km^2/s^2)")
+    axes[1].set_title("True specific-energy change")
+    axes[1].axhline(0, color="gray", lw=0.6)
+
+    axes[2].scatter(data["ranks"], data["turning"], **sc_kw)
+    axes[2].set_ylabel("0.5 |Delta V|^2")
+    axes[2].set_title("Turning diagnostic only")
+
+    axes[3].scatter(data["ranks"], data["deflection"], **sc_kw)
+    axes[3].set_ylabel("|Deflection| (deg)")
+    axes[3].set_title("Deflection")
+
+    axes[4].scatter(data["ranks"], data["periapsis_planet_au"], **sc_kw)
+    axes[4].set_yscale("log")
+    axes[4].set_ylabel("Planet periapsis (AU)")
+    axes[4].set_title("Encounter depth")
+
+    axes[5].scatter(data["ranks"], data["closure"], **sc_kw)
+    axes[5].set_yscale("log")
+    axes[5].set_ylabel("Closure relative error")
+    axes[5].set_title("Work-energy closure")
+
+    for ax in axes:
+        ax.set_xlabel("Rank by energy gain")
+        ax.grid(True, alpha=0.2)
+
+    plt.colorbar(sc, ax=axes, label="v_inf (km/s)", shrink=0.85)
+    fig.suptitle(
+        f"{_meta(cfg_raw)['name']} - Top-{len(top)} exploratory candidates",
+        fontsize=12,
+    )
+    fig.subplots_adjust(right=0.9, hspace=0.35, wspace=0.35)
+    _savefig(fig, run_dir, "candidate_ranking.png")
+    return run_dir / "candidate_ranking.png"
+
+
+def plot_candidate_ranking_panels(run_dir: Path, top_n: Optional[int] = None) -> list[Path]:
+    """Write each top-candidate ranking diagnostic as its own PNG."""
+    _require_mpl()
+    run_dir = Path(run_dir)
+    _, _, _, cfg_raw = _load(run_dir)
+    data = _candidate_ranking_data(run_dir, cfg_raw, top_n)
+    if not data["top"]:
+        return [
+            _unavailable_figure(
+                run_dir,
+                filename,
+                "No eligible top candidates",
+                "No escaped solver-successful samples with finite COM energy gain were available.",
+            )
+            for filename in _CANDIDATE_PANEL_FILENAMES
+        ]
+    return [
+        _plot_candidate_panel(run_dir, data, spec, cfg_raw)
+        for spec in _candidate_panel_specs(data)
+    ]
+
+
+def _barycentric_tracks(sol, values: dict) -> dict:
+    total_mass = values["star_mass_kg"] + values["planet_mass_kg"]
+    com_x = (
+        values["star_mass_kg"] * sol.y[0, :]
+        + values["planet_mass_kg"] * sol.y[4, :]
+    ) / total_mass
+    com_y = (
+        values["star_mass_kg"] * sol.y[1, :]
+        + values["planet_mass_kg"] * sol.y[5, :]
+    ) / total_mass
+    return {
+        "star_x": (sol.y[0, :] - com_x) / AU_KM,
+        "star_y": (sol.y[1, :] - com_y) / AU_KM,
+        "planet_x": (sol.y[4, :] - com_x) / AU_KM,
+        "planet_y": (sol.y[5, :] - com_y) / AU_KM,
+        "test_x": (sol.y[8, :] - com_x) / AU_KM,
+        "test_y": (sol.y[9, :] - com_y) / AU_KM,
+    }
+
+
+def _set_equal_limits(ax, xs: list[np.ndarray], ys: list[np.ndarray], min_span: float = 1e-3) -> None:
+    x_arrays = [arr[np.isfinite(arr)] for arr in xs if np.size(arr) and np.any(np.isfinite(arr))]
+    y_arrays = [arr[np.isfinite(arr)] for arr in ys if np.size(arr) and np.any(np.isfinite(arr))]
+    if not x_arrays or not y_arrays:
+        return
+    x = np.concatenate(x_arrays)
+    y = np.concatenate(y_arrays)
+    x_mid = 0.5 * (np.nanmin(x) + np.nanmax(x))
+    y_mid = 0.5 * (np.nanmin(y) + np.nanmax(y))
+    span = max(np.nanmax(x) - np.nanmin(x), np.nanmax(y) - np.nanmin(y), min_span)
+    half = 0.55 * span
+    ax.set_xlim(x_mid - half, x_mid + half)
+    ax.set_ylim(y_mid - half, y_mid + half)
+
+
+def plot_best_candidate(run_dir: Path) -> Path:
+    """Plot the strongest observed candidate in the binary barycentric frame."""
+    _require_mpl()
+    run_dir = Path(run_dir)
+    _, _, _, cfg_raw = _load(run_dir)
+    candidates = _ensure_top_candidates(run_dir, top_n=1)
     if not candidates:
-        return run_dir / "trajectory_tracks.png"
+        return _unavailable_figure(
+            run_dir,
+            "best_candidate.png",
+            "No best candidate available",
+            "No eligible escaped finite-gain candidate was available for plotting.",
+        )
+    row = candidates[0]
+    try:
+        _, values, integration = _integrate_candidate_row(run_dir, row)
+    except Exception as exc:
+        return _unavailable_figure(
+            run_dir,
+            "best_candidate.png",
+            "Best candidate plot unavailable",
+            f"Re-integration failed: {exc}",
+        )
 
-    gain_vals = np.array([float(r["energy_gain_dimensionless"]) for r in candidates])
-    gain_min, gain_max = gain_vals.min(), gain_vals.max()
+    tracks = _barycentric_tracks(integration.solution, values)
 
+    fig, ax = plt.subplots(figsize=(8.5, 8.5))
+    ax.plot(tracks["test_x"], tracks["test_y"], color="#1f77b4", lw=1.5, label="Test particle")
+    ax.scatter(tracks["test_x"][0], tracks["test_y"][0], marker="o", s=36, color="#2ca02c", label="Start")
+    ax.scatter(tracks["test_x"][-1], tracks["test_y"][-1], marker="x", s=48, color="#d62728", label="End")
+    ax.plot(tracks["star_x"], tracks["star_y"], color="#e15759", lw=1.0, alpha=0.75, label="Star")
+    ax.plot(tracks["planet_x"], tracks["planet_y"], color="#f28e2b", lw=1.0, alpha=0.85, label="Planet")
+    ax.scatter([0], [0], s=52, color="#222222", marker="+", zorder=5, label="Binary barycenter")
+    ax.set_aspect("equal")
+    ax.set_xlabel("Barycentric x (AU)")
+    ax.set_ylabel("Barycentric y (AU)")
+    ax.grid(True, alpha=0.25)
+    _set_equal_limits(
+        ax,
+        [tracks["test_x"], tracks["star_x"], tracks["planet_x"]],
+        [tracks["test_y"], tracks["star_y"], tracks["planet_y"]],
+    )
+
+    details = (
+        f"rank={row.get('rank', '1')}  v_inf={_float(row, 'v_inf_kms'):.0f} km/s\n"
+        f"gain={_float(row, 'energy_gain_dimensionless'):.4g}  "
+        f"Delta eps={_float(row, 'delta_specific_energy_com'):.4g} km^2/s^2\n"
+        f"deflection={_float(row, 'deflection_deg'):.3g} deg  "
+        f"periapsis={_float(row, 'periapsis_planet_km')/AU_KM:.4g} AU\n"
+        "binary barycentric frame; finite-sample example, not a converged optimum"
+    )
+    ax.text(
+        0.02,
+        0.98,
+        details,
+        transform=ax.transAxes,
+        va="top",
+        ha="left",
+        fontsize=9,
+        bbox=dict(boxstyle="round,pad=0.35", facecolor="white", alpha=0.82),
+    )
+    ax.legend(fontsize=8, loc="lower right")
+    ax.set_title(f"{_meta(cfg_raw)['name']} - Strongest observed candidate")
+    fig.tight_layout()
+    _savefig(fig, run_dir, "best_candidate.png")
+    return run_dir / "best_candidate.png"
+
+
+def plot_trajectory_tracks(run_dir: Path, top_n: Optional[int] = None) -> Path:
+    """Re-integrate ranked top candidates and plot trajectories in barycentric frame."""
+    _require_mpl()
+    run_dir = Path(run_dir)
+    _, _, _, cfg_raw = _load(run_dir)
+    top_n = _candidate_track_top_n(cfg_raw) if top_n is None else int(top_n)
+    candidates = _ensure_top_candidates(run_dir, top_n=top_n)
+    if not candidates:
+        return _unavailable_figure(
+            run_dir,
+            "trajectory_tracks.png",
+            "No trajectory tracks available",
+            "No eligible top candidates were available for re-integration.",
+        )
+
+    gain_vals = np.array([_float(r, "energy_gain_dimensionless") for r in candidates])
+    gain_min, gain_max = np.nanmin(gain_vals), np.nanmax(gain_vals)
+    if gain_min == gain_max:
+        gain_max = gain_min + 1.0
     fig, ax = plt.subplots(figsize=(9, 9))
     cmap = plt.cm.RdYlGn
     norm = plt.Normalize(gain_min, gain_max)
+    context_tracks = None
+    limit_xs = []
+    limit_ys = []
 
     for row in candidates:
         try:
-            pos, vel = state_at_inbound_boundary(
-                float(row["v_inf_kms"]),
-                float(row["impact_parameter_km"]),
-                float(row["incoming_direction_rad"]),
-                values["boundary_radius_km"],
-                total_mu,
-            )
-            binary = init_binary_barycentric(
-                values["semi_major_axis_km"],
-                config.orbit.eccentricity,
-                float(row["binary_mean_anomaly_rad"]),
-                config.orbit.argument_periapsis_rad,
-                values["star_mass_kg"],
-                values["planet_mass_kg"],
-                config.orbit.prograde,
-                config.system.bulk_velocity_x_kms,
-                config.system.bulk_velocity_y_kms,
-            )
-            bulk = np.array([config.system.bulk_velocity_x_kms,
-                             config.system.bulk_velocity_y_kms])
-            initial_state = np.concatenate(
-                [binary, pos, vel + bulk, np.zeros(2)]
-            )
-            integration = integrate_encounter(
-                initial_state,
-                values["star_mass_kg"],
-                values["planet_mass_kg"],
-                values["star_radius_km"],
-                values["planet_radius_km"],
-                values["boundary_radius_km"],
-                config.numerical.max_time_sec,
-                method=config.numerical.method,
-                rtol=config.numerical.rtol,
-                atol=config.numerical.atol,
-                softening_km=config.numerical.softening_km,
-            )
-            sol = integration.solution
-            # Planet-frame coordinates
-            px = sol.y[4, :]  # planet x
-            py = sol.y[5, :]  # planet y
-            tx = sol.y[8, :] - px  # test particle relative to planet
-            ty = sol.y[9, :] - py
-            color = cmap(norm(float(row["energy_gain_dimensionless"])))
-            ax.plot(tx / AU_KM, ty / AU_KM, lw=0.9, alpha=0.75, color=color)
+            _, values, integration = _integrate_candidate_row(run_dir, row)
+            tracks = _barycentric_tracks(integration.solution, values)
+            if context_tracks is None:
+                context_tracks = tracks
+            color = cmap(norm(_float(row, "energy_gain_dimensionless")))
+            ax.plot(tracks["test_x"], tracks["test_y"], lw=0.9, alpha=0.75, color=color)
+            limit_xs.append(tracks["test_x"])
+            limit_ys.append(tracks["test_y"])
         except Exception:
             continue
 
-    # Draw planet position at origin and star
-    ax.scatter([0], [0], s=150, color="#ff7f0e", zorder=5, label="Planet (at t=0)")
-    planet_r_au = values["planet_radius_km"] / AU_KM
-    circle = plt.Circle((0, 0), planet_r_au, color="#ff7f0e", alpha=0.3)
-    ax.add_patch(circle)
+    if context_tracks is not None:
+        ax.plot(context_tracks["star_x"], context_tracks["star_y"], color="#e15759", lw=1.0, alpha=0.8, label="Star path (rank 1)")
+        ax.plot(context_tracks["planet_x"], context_tracks["planet_y"], color="#f28e2b", lw=1.0, alpha=0.9, label="Planet path (rank 1)")
+        limit_xs.extend([context_tracks["star_x"], context_tracks["planet_x"]])
+        limit_ys.extend([context_tracks["star_y"], context_tracks["planet_y"]])
+    ax.scatter([0], [0], s=60, color="#222222", marker="+", zorder=5, label="Binary barycenter")
+    _set_equal_limits(ax, limit_xs, limit_ys)
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    plt.colorbar(sm, ax=ax, label="Δε / vc² (energy gain)")
-
-    b_max_au = values["b_max_km"] / AU_KM
-    ax.set_xlim(-1.5 * b_max_au, 1.5 * b_max_au)
-    ax.set_ylim(-1.5 * b_max_au, 1.5 * b_max_au)
-    ax.set_xlabel("Planet-frame x (AU)", fontsize=11)
-    ax.set_ylabel("Planet-frame y (AU)", fontsize=11)
-    ax.set_title(f"{_meta(cfg_raw)['name']}\n"
-                 f"Top-{top_n} trajectories in planet frame (coloured by Δε/vc²)")
+    plt.colorbar(sm, ax=ax, label="Delta epsilon / vc^2")
+    ax.set_xlabel("Barycentric x (AU)")
+    ax.set_ylabel("Barycentric y (AU)")
+    ax.set_title(f"{_meta(cfg_raw)['name']} - Top-{len(candidates)} candidate tracks")
     ax.legend(fontsize=9)
     ax.set_aspect("equal")
     fig.tight_layout()
     _savefig(fig, run_dir, "trajectory_tracks.png")
     return run_dir / "trajectory_tracks.png"
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 16. Pareto front  (energy gain vs periapsis and vs deflection)
-# ──────────────────────────────────────────────────────────────────────────────
 
 def _pareto_mask(objectives: np.ndarray) -> np.ndarray:
     """Return boolean mask of Pareto-non-dominated points.
@@ -995,8 +1261,25 @@ def plot_pareto_front(run_dir: Path) -> Path:
     if not escaped:
         return run_dir / "pareto_front.png"
 
+    candidate_corrections = {}
+    for row in _ensure_top_candidates(run_dir, top_n=_candidate_top_n(cfg_raw)):
+        key = (
+            str(row.get("seed", "")),
+            str(row.get("sample_index", "")),
+            str(row.get("v_inf_kms", "")),
+        )
+        candidate_corrections[key] = _float(row, "periapsis_planet_km")
+
+    def _corrected_planet_periapsis(row: dict) -> float:
+        key = (
+            str(row.get("seed", "")),
+            str(row.get("sample_index", "")),
+            str(row.get("v_inf_kms", "")),
+        )
+        return candidate_corrections.get(key, float(row["periapsis_planet_km"]))
+
     gain = np.array([float(r["energy_gain_dimensionless"]) for r in escaped])
-    peri = np.array([float(r["periapsis_planet_km"]) / AU_KM for r in escaped])
+    peri = np.array([_corrected_planet_periapsis(r) / AU_KM for r in escaped])
     defl = np.abs(np.degrees([float(r["deflection_rad"]) for r in escaped]))
     v_col = np.array([float(r["v_inf_kms"]) for r in escaped])
 
@@ -1083,6 +1366,23 @@ def generate_all_plots(run_dir: str | Path, verbose: bool = True) -> list[Path]:
     if manifest.get("schema_version") != 4:
         raise ValueError("generate_all_plots requires a current schema run directory")
 
+    candidate_enabled = True
+    candidate_top_n = 30
+    candidate_track_top_n = 10
+    try:
+        from .candidates import write_top_candidates_for_run
+        from .config import load_config
+
+        config = load_config(run_dir / "config.yaml")
+        candidate_enabled = bool(config.candidate_diagnostics.enabled)
+        candidate_top_n = config.candidate_diagnostics.top_n
+        candidate_track_top_n = config.candidate_diagnostics.trajectory_top_n
+        if candidate_enabled:
+            write_top_candidates_for_run(run_dir, top_n=candidate_top_n)
+    except Exception as exc:
+        if verbose:
+            print(f"  Candidate table refresh skipped ({exc})")
+
     _, samples, _, cfg_raw = _load(run_dir)
     vinfs = sorted({float(r["v_inf_kms"]) for r in samples})
     mid_v = vinfs[len(vinfs) // 2]
@@ -1101,10 +1401,22 @@ def generate_all_plots(run_dir: str | Path, verbose: bool = True) -> list[Path]:
         ("Collision vs escape widths",lambda: plot_collision_vs_escape_width(run_dir)),
         ("Parameter correlations",    lambda: plot_parameter_correlations(run_dir)),
         ("Velocity phase space",      lambda: plot_velocity_phase_space(run_dir)),
-        ("Candidate ranking",         lambda: plot_candidate_ranking(run_dir)),
-        ("Pareto front",              lambda: plot_pareto_front(run_dir)),
-        ("Trajectory tracks",         lambda: plot_trajectory_tracks(run_dir)),
     ]
+
+    if candidate_enabled:
+        plots.extend([
+            ("Best candidate",        lambda: plot_best_candidate(run_dir)),
+            ("Candidate ranking",     lambda: plot_candidate_ranking(run_dir, candidate_top_n)),
+            ("Candidate panels",      lambda: plot_candidate_ranking_panels(run_dir, candidate_top_n)),
+        ])
+
+    plots.append(("Pareto front", lambda: plot_pareto_front(run_dir)))
+
+    if candidate_enabled:
+        plots.append((
+            "Trajectory tracks",
+            lambda: plot_trajectory_tracks(run_dir, candidate_track_top_n),
+        ))
 
     generated = []
     for name, fn in plots:
@@ -1112,7 +1424,10 @@ def generate_all_plots(run_dir: str | Path, verbose: bool = True) -> list[Path]:
             print(f"  {name}...", end=" ", flush=True)
         try:
             out = fn()
-            generated.append(out)
+            if isinstance(out, (list, tuple)):
+                generated.extend(out)
+            else:
+                generated.append(out)
             if verbose:
                 print("done")
         except Exception as exc:

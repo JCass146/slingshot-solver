@@ -128,6 +128,17 @@ class ValidationConfig(BaseModel):
     max_numerical_failure_fraction: float = Field(default=0.01, ge=0.0, le=1.0)
 
 
+class CandidateDiagnosticsConfig(BaseModel):
+    """Exploratory top-candidate artifact settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    top_n: int = Field(default=30, ge=1)
+    trajectory_top_n: int = Field(default=10, ge=1)
+    ranking_mode: Literal["energy"] = "energy"
+    rank_metric: Literal["energy_gain_dimensionless"] = "energy_gain_dimensionless"
+
 class MetadataConfig(BaseModel):
     """Observational provenance attached to every run."""
 
@@ -155,6 +166,9 @@ class V4Config(BaseModel):
     planar_width: PlanarWidthConfig = Field(default_factory=PlanarWidthConfig)
     numerical: NumericalConfig = Field(default_factory=NumericalConfig)
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
+    candidate_diagnostics: CandidateDiagnosticsConfig = Field(
+        default_factory=CandidateDiagnosticsConfig
+    )
     metadata: MetadataConfig
 
 

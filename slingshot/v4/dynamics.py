@@ -212,6 +212,32 @@ class EncounterIntegration:
     star_periapsis_time_sec: Optional[float]
 
 
+def _minimum_separation_km(
+    solution: object,
+    first_slice: slice,
+    second_slice: slice,
+    event_times: np.ndarray,
+) -> tuple[float, Optional[float]]:
+    """Return the minimum sampled/event separation and its time."""
+    sampled = np.linalg.norm(
+        solution.y[first_slice, :] - solution.y[second_slice, :],
+        axis=0,
+    )
+    sampled_index = int(np.argmin(sampled))
+    best_distance = float(sampled[sampled_index])
+    best_time = float(solution.t[sampled_index]) if len(solution.t) else None
+    if solution.sol is not None:
+        for event_time in event_times:
+            event_state = solution.sol(float(event_time))
+            distance = float(
+                np.linalg.norm(event_state[first_slice] - event_state[second_slice])
+            )
+            if distance < best_distance:
+                best_distance = distance
+                best_time = float(event_time)
+    return best_distance, best_time
+
+
 def integrate_encounter(
     initial_state: np.ndarray,
     star_mass_kg: float,
@@ -309,26 +335,18 @@ def integrate_encounter(
     else:
         outcome = "time_limit"
 
-    star_distance = np.linalg.norm(solution.y[8:10] - solution.y[0:2], axis=0)
-    planet_distance = np.linalg.norm(solution.y[8:10] - solution.y[4:6], axis=0)
-    planet_periapsis_time = (
-        float(solution.t_events[3][0]) if len(solution.t_events[3]) else None
+    planet_periapsis, planet_periapsis_time = _minimum_separation_km(
+        solution,
+        slice(8, 10),
+        slice(4, 6),
+        solution.t_events[3],
     )
-    star_periapsis_time = (
-        float(solution.t_events[4][0]) if len(solution.t_events[4]) else None
+    star_periapsis, star_periapsis_time = _minimum_separation_km(
+        solution,
+        slice(8, 10),
+        slice(0, 2),
+        solution.t_events[4],
     )
-    planet_periapsis = float(np.min(planet_distance))
-    star_periapsis = float(np.min(star_distance))
-    if planet_periapsis_time is not None and solution.sol is not None:
-        event_state = solution.sol(planet_periapsis_time)
-        planet_periapsis = float(
-            np.linalg.norm(event_state[8:10] - event_state[4:6])
-        )
-    if star_periapsis_time is not None and solution.sol is not None:
-        event_state = solution.sol(star_periapsis_time)
-        star_periapsis = float(
-            np.linalg.norm(event_state[8:10] - event_state[0:2])
-        )
     return EncounterIntegration(
         solution=solution,
         outcome=outcome,

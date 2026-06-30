@@ -37,6 +37,29 @@ event probability, or occurrence rate.
 
 ---
 
+## Documentation Map
+
+The root Markdown files are intentionally limited to canonical project docs:
+
+| File | Role |
+|---|---|
+| `README.md` | Workflow, methodology summary, artifacts, validation, and project map |
+| `CHANGELOG.md` | Implemented changes and methodology cleanup history |
+| `HYBRID_V4_METHODOLOGY.md` | Current claim hierarchy, valid metrics, candidate diagnostics, and wording rules |
+| `PARAMETER_EXPLORATION_PLAN.md` | Current phased plan for baseline design, Kepler-432 comparison, pilot grids, and focused runs |
+
+Supporting references live outside the root:
+
+| File | Role |
+|---|---|
+| `docs/slingshot_derivations.md` | Mathematical derivations behind the v4 estimand and validation gates |
+| `docs/archive/METHODOLOGY_AUDIT_2026-06-20.md` | Historical audit that motivated the v4 rewrite; archived, not current guidance |
+
+`RESEARCH_CORE.md` has been consolidated into this README. New one-off analysis
+notes should live with their run outputs rather than becoming root-level docs.
+
+---
+
 ## What The Current Core Adds
 
 - Eccentric Keplerian binary initialization from semi-major axis,
@@ -51,7 +74,8 @@ event probability, or occurrence rate.
 - Separate work integrals for the moving stellar and planetary potentials,
   with work-energy closure checks per trajectory.
 - Wilson confidence intervals, collision widths, gain quantiles, and
-  one-sided confidence-bound tail gate.
+  one-sided confidence-bound tail gate. The `q=0` row is diagnostic;
+  validation of energy-gain ability starts at claim thresholds `q>=0.01`.
 - DOP853 campaign integration; Radau cross-checks; optional REBOUND IAS15.
 - Configurations, manifests, observational provenance, and compact
   per-sample records.
@@ -59,8 +83,8 @@ event probability, or occurrence rate.
   discrete observational-model uncertainty.
 - Per-(v∞, seed) independent RNG streams for reproducibility.
 - Seed-level variance and heterogeneity diagnostics.
-- 16 automatically generated diagnostic figures per campaign run.
-- `slingshot plot <run_dir>` to regenerate figures from any archived run.
+- 17 automatically generated diagnostic figures per campaign run, including hybrid candidate diagnostics.
+- `slingshot plot <run_dir>` to regenerate figures, `top_candidates.csv`, manifest artifact metadata, and `REPORT.md` from any archived run.
 
 ---
 
@@ -124,11 +148,13 @@ Each preset defaults to 7 speed bins × 5 seeds × 2,000 trajectories
 = 70,000 trajectories per observational model. Runtime is approximately
 2–3 hours on a modern laptop.
 
-### Regenerate Figures for an Existing Run
+### Regenerate Figures and Report for an Existing Run
 
 ```bash
 slingshot plot results/kepler432_ortiz2015_<timestamp>
 ```
+
+This refreshes `top_candidates.csv`, all diagnostic PNGs, manifest artifact metadata, and `REPORT.md` so archived runs use the current hybrid methodology text.
 
 ---
 
@@ -193,6 +219,13 @@ validation:
   work_energy_relative_tolerance: 1.0e-4
   max_time_limit_fraction: 0.05
   max_numerical_failure_fraction: 0.01
+
+candidate_diagnostics:
+  enabled: true
+  top_n: 30
+  trajectory_top_n: 10
+  ranking_mode: energy
+  rank_metric: energy_gain_dimensionless
 ```
 
 **Key configuration notes:**
@@ -263,6 +296,21 @@ For every (speed, threshold) pair, the workflow reports:
 Between-seed variance and heterogeneity are reported in `width_summary.csv`
 under `scope=seed_variance`.
 
+### 6. Hybrid Candidate Diagnostics
+
+The hybrid v4 layer keeps planar widths as the primary claim and adds an
+exploratory top-candidate view for intuition and simulator calibration.
+`top_candidates.csv` is generated from escaped, solver-successful samples with
+finite `energy_gain_dimensionless`; selected candidates are re-integrated during
+regeneration so periapsis and trajectory diagnostics use the current metric code.
+Candidates are ranked by COM energy gain, true specific energy change, lower
+work-energy closure error, and stable sample identity.
+
+`best_observed_gain` and barycentric `best_candidate.png` describe the strongest observed
+finite-sample candidate only. They are not claims about the physical maximum
+without a separate convergence or optimization study. The detailed wording and
+non-claim rules live in `HYBRID_V4_METHODOLOGY.md`.
+
 ---
 
 ## Run Artifacts
@@ -274,6 +322,7 @@ results/<case>_<timestamp>/
 ├── config.yaml              # Frozen configuration
 ├── samples.csv              # Proposal vars, outcomes, metrics, work, solver diagnostics
 ├── width_summary.csv        # Per-seed, combined, and seed-variance width rows
+├── top_candidates.csv       # Exploratory finite-sample ranking by v4 energy gain
 ├── manifest.json            # Schema, version, commit, seeds, gates, provenance
 ├── REPORT.md                # Comprehensive report with all tables and figures
 ├── width_vs_vinf.png     # Primary estimand: W(v∞) with CI and seed points
@@ -289,9 +338,16 @@ results/<case>_<timestamp>/
 ├── periapsis_distributions.png
 ├── work_energy_diagnostics.png
 ├── parameter_correlations.png
-├── candidate_ranking.png
+├── best_candidate.png     # Rank-1 observed trajectory in the barycentric frame
+├── candidate_ranking.png # Composite top-candidate diagnostics for report viewing
+├── candidate_ranking_gain.png
+├── candidate_ranking_delta_energy.png
+├── candidate_ranking_turning.png
+├── candidate_ranking_deflection.png
+├── candidate_ranking_periapsis.png
+├── candidate_ranking_closure.png
 ├── pareto_front.png      # Two Pareto fronts using current scientific metrics
-└── trajectory_tracks.png # Top-10 re-integrated trajectories in planet frame
+└── trajectory_tracks.png # Top-N re-integrated candidate trajectories in barycentric frame
 ```
 
 ---
@@ -335,6 +391,7 @@ pytest -q
 - `slingshot/` contains the current research workflow plus retained legacy modules.
 - `configs/` contains the current research presets and legacy configs.
 - `diagnostics/` contains helper scripts for inspecting completed runs.
+- `docs/` contains supporting derivations and archived methodology notes.
 - `tests/` covers the current research core, legacy compatibility, and utilities.
 - `validate.py` runs the full publication-gate validation suite.
 - `run.py` remains the legacy pipeline wrapper.
@@ -353,8 +410,8 @@ Existing legacy directories are recognized by the run-discovery helpers
 and marked `legacy_science_model: true`. Current aggregate discovery returns
 only eligible current-schema runs.
 
-**v3 results should not be presented as scientific conclusions about Kepler-432 b.
-All known limitations are documented in `METHODOLOGY_AUDIT.md`.**
+**v3 results should not be presented as scientific conclusions about Kepler-432 b.**
+The historical June 20 audit is archived at `docs/archive/METHODOLOGY_AUDIT_2026-06-20.md`; current methodology guidance lives in `HYBRID_V4_METHODOLOGY.md` and the remediation history lives in `CHANGELOG.md`.
 
 ---
 

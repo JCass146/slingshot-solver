@@ -1,5 +1,7 @@
 """Orbital-element and event-integration tests for the research core."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -62,3 +64,28 @@ def test_barycenter_and_bulk_velocity():
     position, velocity = center_of_mass_state(state, star_mass, planet_mass)
     assert position == pytest.approx([0.0, 0.0], abs=1e-6)
     assert velocity == pytest.approx([12.0, -3.0], abs=1e-12)
+
+def test_minimum_separation_uses_closest_event_not_first():
+    from slingshot.v4.dynamics import _minimum_separation_km
+
+    y = np.zeros((14, 3), dtype=float)
+    y[8, :] = [50.0, 40.0, 30.0]
+
+    def dense_state(time):
+        state = np.zeros(14, dtype=float)
+        state[8] = 20.0 if time == 1.0 else 3.0
+        return state
+
+    solution = SimpleNamespace(
+        y=y,
+        t=np.array([0.0, 1.0, 2.0]),
+        sol=dense_state,
+    )
+    distance, time = _minimum_separation_km(
+        solution,
+        slice(8, 10),
+        slice(4, 6),
+        np.array([1.0, 2.0]),
+    )
+    assert distance == pytest.approx(3.0)
+    assert time == pytest.approx(2.0)

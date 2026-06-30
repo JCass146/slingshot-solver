@@ -8,6 +8,9 @@ from typing import Iterable
 import numpy as np
 
 
+ABILITY_CLAIM_THRESHOLD_MIN = 0.01
+
+
 def wilson_interval(
     successes: int, trials: int, confidence_level: float = 0.95
 ) -> tuple[float, float]:
@@ -191,3 +194,70 @@ def summarize_planar_widths(
         }
     )
     return output
+
+
+def _tail_gate_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "1", "yes"}
+
+
+def summarize_tail_gate_status(
+    summary_rows: Iterable[dict],
+    claim_threshold_min: float = ABILITY_CLAIM_THRESHOLD_MIN,
+) -> dict:
+    """Summarize formal ability-tail gates separately from q=0 diagnostics.
+
+    The q=0 row is useful for diagnosing weak distant perturbations, but the
+    defensible v4 ability claim starts at the first declared positive threshold
+    at or above claim_threshold_min.
+    """
+    combined = [
+        row for row in summary_rows
+        if row.get("scope") == "combined"
+        and row.get("statistic") == "energy_threshold"
+    ]
+    q0_rows = []
+    claim_rows = []
+    for row in combined:
+        try:
+            threshold = float(row.get("threshold", "nan"))
+        except (TypeError, ValueError):
+            continue
+        if abs(threshold) <= 1e-12:
+            q0_rows.append(row)
+        if threshold >= claim_threshold_min - 1e-12:
+            claim_rows.append(row)
+
+    failed_claim_rows = [
+        row for row in claim_rows if not _tail_gate_bool(row.get("tail_check_passed"))
+    ]
+    failed_q0_rows = [
+        row for row in q0_rows if not _tail_gate_bool(row.get("tail_check_passed"))
+    ]
+
+    def _failures(rows: list[dict]) -> list[dict]:
+        failures = []
+        for row in rows:
+            failures.append(
+                {
+                    "v_inf_kms": float(row.get("v_inf_kms", np.nan)),
+                    "threshold": float(row.get("threshold", np.nan)),
+                    "tail_fraction_upper_bound": float(
+                        row.get("tail_fraction_upper_bound", np.nan)
+                    ),
+                }
+            )
+        return failures
+
+    return {
+        "tail_checks_passed": bool(claim_rows) and not failed_claim_rows,
+        "ability_tail_checks_passed": bool(claim_rows) and not failed_claim_rows,
+        "ability_tail_threshold_min": float(claim_threshold_min),
+        "ability_tail_thresholds": sorted(
+            {float(row.get("threshold", np.nan)) for row in claim_rows}
+        ),
+        "ability_tail_failures": _failures(failed_claim_rows),
+        "q0_tail_diagnostic_passed": bool(q0_rows) and not failed_q0_rows,
+        "q0_tail_diagnostic_failures": _failures(failed_q0_rows),
+    }

@@ -1,3 +1,9 @@
+> Archive note: This is the June 20, 2026 historical audit that motivated the
+> v4 methodology overhaul. Its v4 "current state" observations are no longer
+> authoritative after the hybrid v4 candidate/reporting work. Use the README,
+> CHANGELOG, HYBRID_V4_METHODOLOGY.md, and PARAMETER_EXPLORATION_PLAN.md for
+> current guidance.
+
 # Statistical Methodology and Evidence Audit
 
 **Audit date:** June 20, 2026  

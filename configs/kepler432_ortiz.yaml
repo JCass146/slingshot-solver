@@ -18,11 +18,11 @@ orbit:
   prograde: true
 
 asymptotic_sampling:
-  v_inf_kms: [10.0, 20.0, 30.0, 40.0, 60.0, 80.0, 120.0]
-  b_max_au: 3.0
-  boundary_radius_au: 8.0
+  v_inf_kms: [10.0, 20.0, 40.0, 80.0, 120.0]
+  b_max_au: 24
+  boundary_radius_au: 32.0
   samples_per_bin: 2000
-  seeds: [42, 43, 44, 45, 46]
+  seeds: [42, 43, 44, 45]
   sample_incoming_direction: true
   sample_binary_mean_anomaly: true
 
@@ -30,13 +30,13 @@ planar_width:
   dimensionless_energy_thresholds: [0.0, 0.01, 0.03, 0.1, 0.3, 1.0]
   confidence_level: 0.95
   tail_fraction: 0.10
-  max_tail_event_fraction: 0.01
+  max_tail_event_fraction: 0.05
 
 numerical:
   method: DOP853
   rtol: 1.0e-10
   atol: 1.0e-10
-  max_time_sec: 3.0e8
+  max_time_sec: 1.5e9
   softening_km: 0.0
   max_step_sec: null
 
@@ -52,7 +52,7 @@ validation:
 
 metadata:
   case_name: kepler432_ortiz2015
-  description: Kepler-432 observational model using the Ortiz et al. system solution.
+  description: 2000 sample runs of the Kepler-432 system using the Ortiz et al. 2015 parameters.
   parameter_source: Ortiz et al. 2015, A&A 573:L6
   citation: https://arxiv.org/abs/1410.3000
   uncertainties:

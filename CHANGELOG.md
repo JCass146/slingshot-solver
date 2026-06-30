@@ -4,13 +4,35 @@ All notable changes to the Slingshot Solver project.
 
 ---
 
+## Unreleased
+
+### Documentation and Parameter Exploration Planning
+
+- Revised `PARAMETER_EXPLORATION_PLAN.md` for the hybrid v4 methodology: `q=0` is diagnostic, claim thresholds start at `q>=0.01`, and grid selection is based on threshold widths, high-gain quantiles, seed stability, and candidate diagnostics rather than sample maxima.
+- Added an explicit baseline-design phase before Kepler-432 comparisons, separating isolated-star sanity checks from single-moving-scatterer or analytic gravity-assist baselines.
+- Replaced the immediate 27-configuration grid with an 8-configuration pilot grid, dimensionless `v_inf/v_c` guidance, scaled `b_max/a` and `boundary_radius/a` policy, and corrected full-grid trajectory-count arithmetic.
+- Consolidated root documentation: `RESEARCH_CORE.md` is folded into `README.md`, mathematical derivations moved to `docs/slingshot_derivations.md`, and the June 20 methodology audit moved to `docs/archive/METHODOLOGY_AUDIT_2026-06-20.md` as historical context.
+- Promoted `PARAMETER_EXPLORATION_PLAN.md` to a primary tracked project document alongside README, CHANGELOG, and the hybrid methodology.
+
+### Hybrid v4 Candidate Diagnostics and Reports
+
+- Added `HYBRID_V4_METHODOLOGY.md` to define the hybrid claim hierarchy: primary planar widths, secondary energy-gain ability, and exploratory finite-sample candidate diagnostics.
+- Added `candidate_diagnostics` config defaults and a v4 candidate-selection module that writes deterministic `top_candidates.csv` from escaped, solver-successful samples with finite COM energy gain.
+- Campaign manifests now include `candidate_diagnostics`, `candidate_count`, `best_observed_gain`, and the candidate/plot artifacts generated for each run.
+- Plot generation now refreshes `top_candidates.csv`, adds barycentric `best_candidate.png`, expands `candidate_ranking.png` across v4-valid diagnostics, writes standalone `candidate_ranking_*.png` panels, and re-integrates ranked candidates for barycentric `trajectory_tracks.png`.
+- Reports now include an `Energy-Gain Ability and Top Candidates` section with wording boundaries, rank-1 details, and a top-candidate table for simulator calibration.
+- `slingshot plot <run_dir>` now refreshes candidate artifacts, manifest artifact metadata, and `REPORT.md` for archived v4 runs.
+- README updated with the hybrid methodology, candidate configuration, and new run artifacts.
+- `q=0` tail checks are now diagnostic; campaign validation gates on claim-bearing ability thresholds `q>=0.01`.
+- Fixed periapsis extraction to use the closest sampled/event separation instead of the first local periapsis event; regenerated candidate diagnostics now re-integrate selected rows before writing `top_candidates.csv`.
+
 ## v4.0.0 — June 2026
 
 ### Major: v4 Research Core — Defensible Planar-Width Methodology
 
 Complete overhaul of the scientific methodology, statistical estimand, validation
 system, and diagnostic output layer. All changes in this release are driven by
-the findings of `METHODOLOGY_AUDIT.md` (June 2026).
+the findings of the archived June 2026 methodology audit (`docs/archive/METHODOLOGY_AUDIT_2026-06-20.md`).
 
 #### P0 — Required before scientific campaign claims
 

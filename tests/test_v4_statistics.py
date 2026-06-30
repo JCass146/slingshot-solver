@@ -76,3 +76,49 @@ def test_wilson_upper_bound_zero_events():
 
     ub = wilson_upper_bound(0, 100, confidence_level=0.95)
     assert 0.0 < ub < 0.05  # should be around 0.03 for N=100 at 95% CI
+
+
+def test_tail_gate_status_treats_q0_as_diagnostic():
+    from slingshot.v4.statistics import summarize_tail_gate_status
+
+    rows = [
+        {
+            "scope": "combined",
+            "statistic": "energy_threshold",
+            "threshold": 0.0,
+            "v_inf_kms": 10.0,
+            "tail_check_passed": False,
+            "tail_fraction_upper_bound": 0.5,
+        },
+        {
+            "scope": "combined",
+            "statistic": "energy_threshold",
+            "threshold": 0.01,
+            "v_inf_kms": 10.0,
+            "tail_check_passed": True,
+            "tail_fraction_upper_bound": 0.01,
+        },
+    ]
+    status = summarize_tail_gate_status(rows)
+    assert status["tail_checks_passed"] is True
+    assert status["ability_tail_checks_passed"] is True
+    assert status["q0_tail_diagnostic_passed"] is False
+    assert len(status["q0_tail_diagnostic_failures"]) == 1
+
+
+def test_tail_gate_status_fails_claim_thresholds():
+    from slingshot.v4.statistics import summarize_tail_gate_status
+
+    rows = [
+        {
+            "scope": "combined",
+            "statistic": "energy_threshold",
+            "threshold": 0.03,
+            "v_inf_kms": 20.0,
+            "tail_check_passed": False,
+            "tail_fraction_upper_bound": 0.2,
+        }
+    ]
+    status = summarize_tail_gate_status(rows)
+    assert status["tail_checks_passed"] is False
+    assert status["ability_tail_failures"][0]["threshold"] == pytest.approx(0.03)

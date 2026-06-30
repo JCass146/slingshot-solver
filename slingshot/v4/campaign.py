@@ -14,12 +14,13 @@ from typing import Optional, Sequence
 import numpy as np
 
 from ..constants import AU_KM, G_KM
+from .candidates import write_top_candidates_for_run
 from .config import V4Config, load_config, save_config
 from .dynamics import init_binary_barycentric, integrate_encounter
 from .metrics import analyze_integration
 from .report import generate_report
 from .sampling import draw_samples
-from .statistics import summarize_planar_widths
+from .statistics import summarize_planar_widths, summarize_tail_gate_status
 from .validation import physical_values, run_quick_validation
 
 
@@ -323,17 +324,18 @@ def run_campaign(
 
     _write_csv(output_path / "samples.csv", sample_records)
     _write_csv(output_path / "width_summary.csv", summary_records)
+    candidate_records = []
+    if config.candidate_diagnostics.enabled:
+        candidate_records = write_top_candidates_for_run(
+            output_path, top_n=config.candidate_diagnostics.top_n
+        )
     completed = datetime.now(timezone.utc)
     closure_values = [
         float(row["work_energy_closure_relative"])
         for row in sample_records
         if np.isfinite(row.get("work_energy_closure_relative", np.nan))
     ]
-    tail_passed = all(
-        bool(row["tail_check_passed"])
-        for row in summary_records
-        if row["scope"] == "combined" and row["statistic"] == "energy_threshold"
-    )
+    tail_status = summarize_tail_gate_status(summary_records)
     # Campaign-level failure gates (P0.2)
     total_samples = len(sample_records)
     time_limit_count = sum(
@@ -357,7 +359,7 @@ def run_campaign(
             and max(closure_values)
             <= config.validation.work_energy_relative_tolerance
         ),
-        "tail_checks_passed": tail_passed,
+        **tail_status,
         "time_limit_count": time_limit_count,
         "time_limit_fraction": time_limit_fraction,
         "time_limit_passed": time_limit_passed,
@@ -388,6 +390,12 @@ def run_campaign(
         "v_inf_kms": list(config.asymptotic_sampling.v_inf_kms),
         "integrator": config.numerical.method,
         "softening_km": config.numerical.softening_km,
+        "candidate_diagnostics": config.candidate_diagnostics.model_dump(mode="json"),
+        "candidate_count": len(candidate_records),
+        "best_observed_gain": (
+            float(candidate_records[0]["energy_gain_dimensionless"])
+            if candidate_records else None
+        ),
         "observational_source": config.metadata.parameter_source,
         "observational_metadata": config.metadata.model_dump(mode="json"),
         "citation": config.metadata.citation,
@@ -399,6 +407,7 @@ def run_campaign(
             "config.yaml",
             "samples.csv",
             "width_summary.csv",
+            "top_candidates.csv",
             "manifest.json",
             "REPORT.md",
         ],
@@ -408,14 +417,21 @@ def run_campaign(
 
     # Generate diagnostic figures before writing the report so the report can
     # include links to any figures that were successfully created.
+    generated_plots = []
     try:
         from .plotting import generate_all_plots
         if verbose:
             print("Generating diagnostic figures...")
-        generate_all_plots(output_path, verbose=verbose)
+        generated_plots = generate_all_plots(output_path, verbose=verbose)
     except Exception as _plot_exc:
         if verbose:
             print(f"  Plotting skipped: {_plot_exc}")
+
+    for artifact in [Path(path).name for path in generated_plots]:
+        if artifact not in manifest["artifacts"]:
+            manifest["artifacts"].append(artifact)
+    with (output_path / "manifest.json").open("w", encoding="utf-8") as stream:
+        json.dump(manifest, stream, indent=2, allow_nan=False)
 
     report = generate_report(output_path, config, summary_records, manifest)
 

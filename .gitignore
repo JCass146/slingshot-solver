@@ -36,7 +36,13 @@ Thumbs.db
 diagnostics/
 validate.py
 
-# Keep only primary project docs tracked
+# Keep canonical and supporting project docs tracked
 *.md
 !README.md
 !CHANGELOG.md
+!HYBRID_V4_METHODOLOGY.md
+!PARAMETER_EXPLORATION_PLAN.md
+!docs/
+!docs/*.md
+!docs/archive/
+!docs/archive/*.md

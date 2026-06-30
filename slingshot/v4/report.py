@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import math
 from pathlib import Path
 from typing import Iterable
@@ -14,8 +15,8 @@ _FIGURE_CATALOGUE = [
     ("width_vs_vinf.png",
      "**Figure 1 — Planar-width estimates vs v∞.**  "
      "Combined Wilson 95% CI bands for every energy threshold, with individual "
-     "per-seed points overlaid at Δε/vc²>0. The gray dashed line marks 2b_max "
-     "(the sampling ceiling). All widths are lower bounds until the tail gate passes."),
+     "per-seed points overlaid at the diagnostic q=0 sign-width row. The gray dashed line marks 2b_max "
+     "(the sampling ceiling). Claim-bearing ability widths begin at q>=0.01 and require tail-gate passage."),
     ("outcome_fractions.png",
      "**Figure 2 — Outcome fractions vs v∞.**  "
      "Stacked bar chart showing the fraction of all samples that escape, collide "
@@ -23,18 +24,18 @@ _FIGURE_CATALOGUE = [
      "Star-collision fraction decreases strongly with speed; escape fraction increases."),
     ("collision_vs_escape.png",
      "**Figure 3 — Escape vs collision widths vs v∞.**  "
-     "Effective planar widths for escape (Δε/vc²>0) and any collision, with 95% "
-     "Wilson CI bands. At low v∞ the collision cross-section exceeds the escape "
-     "width; at high v∞ the ordering reverses."),
+     "Effective planar widths for diagnostic q=0 positive-gain escape and any collision, with 95% "
+     "Wilson CI bands. The q=0 row diagnoses weak distant perturbations rather than "
+     "the formal ability claim."),
     ("tail_support.png",
      "**Figure 4 — Tail-support diagnostic (middle speed bin).**  "
-     "Escape event probability binned by |b|/b_max with Wilson CI. If the event "
-     "rate in the outer 10% strip does not fall toward zero, b_max is too small "
-     "and the width estimates are underestimates."),
+     "Event probability binned by |b|/b_max with Wilson CI. For claim thresholds q>=0.01, "
+     "the outer 10% strip must be quiet. The q=0 row is reported as a diagnostic "
+     "of weak distant perturbations."),
     ("seed_stability.png",
      "**Figure 5 — Seed stability (Δε/vc²>0).**  "
-     "Per-seed planar-width curves (dashed) vs the pooled Wilson CI (solid black). "
-     "Low between-seed scatter indicates stable estimation."),
+     "Per-seed diagnostic q=0 sign-width curves (dashed) vs the pooled Wilson CI (solid black). "
+     "Low between-seed scatter indicates stable sampling, not a compact ability width."),
     ("sampling_distributions.png",
      "**Figure 6 — Proposal and acceptance distributions.**  "
      "Marginal histograms of signed impact parameter, incoming direction, binary "
@@ -69,16 +70,21 @@ _FIGURE_CATALOGUE = [
      "**Figure 13 — Parameter correlations (escaped trajectories).**  "
      "Energy gain vs planet periapsis, energy gain vs deflection, and deflection "
      "vs star proximity, all coloured by v∞."),
+    ("best_candidate.png",
+     "**Figure 14 - Strongest observed candidate trajectory.**  "
+     "The rank-1 finite-sample candidate re-integrated from its asymptotic parameters "
+     "and shown in the binary barycentric frame. This is illustrative, not a converged optimum."),
     ("candidate_ranking.png",
-     "**Figure 14 — Top-30 candidate ranking.**  "
-     "Top 30 escaped trajectories by Δε/vc²: panels show gain, deflection, and "
-     "planet periapsis. These are illustrations — not converged optima."),
+     "**Figure 15 - Top-candidate ranking.**  "
+     "Exploratory ranking by `energy_gain_dimensionless`. Panels show COM gain, "
+     "true specific-energy change, turning diagnostic, deflection, planet periapsis, "
+     "and work-energy closure, coloured by v_inf. The same panels are also written as standalone `candidate_ranking_*.png` files for documentation."),
     ("pareto_front.png",
-     "**Figure 15 — Pareto fronts (escaped trajectories).**  "
+     "**Figure 16 - Pareto fronts (escaped trajectories).**  "
      "Left: (maximise gain, minimise periapsis). Right: (maximise gain, maximise "
      "|deflection|). Both panels use the current scientific metrics."),
     ("trajectory_tracks.png",
-     "**Figure 16 — Top-10 trajectory tracks in the planet frame.**  "
+     "**Figure 17 - Top candidate tracks in the binary barycentric frame.**  "
      "Re-integrated from asymptotic parameters in samples.csv; coloured by Δε/vc². "
      "These are examples, not a probability density."),
 ]
@@ -98,8 +104,25 @@ def _pct(value) -> str:
     try:
         return f"{float(value)*100:.2f}%"
     except (TypeError, ValueError):
-        return "—"
+        return "-"
 
+
+def _fmt_au_from_km(value, fmt: str = ".4g") -> str:
+    try:
+        v = float(value)
+        if math.isnan(v):
+            return "-"
+        return format(v / AU_KM, fmt)
+    except (TypeError, ValueError):
+        return "-"
+
+
+def _read_top_candidates(output_path: Path) -> list[dict]:
+    path = output_path / "top_candidates.csv"
+    if not path.exists() or path.stat().st_size == 0:
+        return []
+    with path.open("r", newline="", encoding="utf-8") as stream:
+        return list(csv.DictReader(stream))
 
 def generate_report(
     output_dir: str | Path,
@@ -113,6 +136,7 @@ def generate_report(
     svar_rows = [r for r in rows if r.get("scope") == "seed_variance"]
     val = manifest.get("validation", {})
     quick_gates = val.get("quick", {}).get("gates", [])
+    top_candidates = _read_top_candidates(output_path)
 
     lines = [
         f"# Slingshot Solver — Planar Research Report",
@@ -133,7 +157,11 @@ def generate_report(
         "The reported widths are **not** three-dimensional area cross-sections, "
         "astrophysical event probabilities, or occurrence rates. "
         "Sample extrema (e.g. highest energy-gain trajectories) are exploratory "
-        "illustrations only — they are not converged physical limits.",
+        "illustrations only - they are not converged physical limits.",
+        "The claim hierarchy is diagnostic q=0 sign widths; claim-bearing ability widths "
+        "for q>=0.01 with Wilson intervals and tail gates; secondary ability from "
+        "high-gain quantiles and seed stability; and exploratory candidate rankings.",
+        "See `HYBRID_V4_METHODOLOGY.md` for wording and non-claim rules.",
         "",
         "---",
         "",
@@ -200,6 +228,7 @@ def generate_report(
         f"- delta_epsilon = epsilon_out - epsilon_in in the binary COM frame",
         f"- vc^2 = G(M_star + M_planet)/a",
         f"- Wilson confidence intervals at {config.planar_width.confidence_level*100:.0f}%",
+        "- Production tail validation applies to q>=0.01; q=0 is diagnostic",
         "",
         "---",
         "",
@@ -266,6 +295,76 @@ def generate_report(
             f"{_fmt(r.get('gain_q99', 'nan'))} |"
         )
 
+    candidate_cfg = getattr(config, "candidate_diagnostics", None)
+    candidate_status = "enabled" if getattr(candidate_cfg, "enabled", True) else "disabled"
+    candidate_top_n = getattr(candidate_cfg, "top_n", "n/a")
+    lines += [
+        "",
+        "---",
+        "",
+        "## Energy-Gain Ability and Top Candidates",
+        "",
+        "Ability is reported as width-above-threshold for q>=0.01 plus high-gain quantiles. "
+        "The top-candidate layer is exploratory and finite-sample; selected rows are re-integrated "
+        "when candidates are regenerated so trajectory diagnostics reflect the current metric code. "
+        "It is useful for calibrating simulator behavior, inspecting trajectories, and comparing tradeoffs, "
+        "but it is not a claim about the maximum physical gain.",
+        "",
+        "| Diagnostic | Value |",
+        "|---|---:|",
+        f"| Candidate diagnostics | {candidate_status} |",
+        f"| Requested top N | {candidate_top_n} |",
+        f"| Eligible ranked candidates | {manifest.get('candidate_count', len(top_candidates))} |",
+        f"| Strongest observed candidate gain | {_fmt(manifest.get('best_observed_gain', top_candidates[0].get('energy_gain_dimensionless') if top_candidates else 'nan'))} |",
+        "",
+    ]
+
+    if top_candidates:
+        best = top_candidates[0]
+        lines += [
+            "### Strongest observed candidate",
+            "",
+            "This is the strongest observed candidate in this finite sample. "
+            "It should be described as observed, not as the physical maximum.",
+            "",
+            "| Field | Value |",
+            "|---|---:|",
+            f"| Rank | {best.get('rank', '1')} |",
+            f"| Seed / sample | {best.get('seed', '-')} / {best.get('sample_index', '-')} |",
+            f"| v_inf | {_fmt(best.get('v_inf_kms'), '.4g')} km/s |",
+            f"| energy_gain_dimensionless | {_fmt(best.get('energy_gain_dimensionless'), '.6g')} |",
+            f"| delta_specific_energy_com | {_fmt(best.get('delta_specific_energy_com'), '.6g')} km^2/s^2 |",
+            f"| delta_v_inf | {_fmt(best.get('delta_v_inf'), '.6g')} km/s |",
+            f"| turning_quadratic | {_fmt(best.get('turning_quadratic'), '.6g')} km^2/s^2 |",
+            f"| deflection | {_fmt(best.get('deflection_deg'), '.6g')} deg |",
+            f"| planet periapsis | {_fmt_au_from_km(best.get('periapsis_planet_km'), '.6g')} AU |",
+            f"| work-energy closure | {_fmt(best.get('work_energy_closure_relative'), '.3e')} |",
+            "",
+            "### Top candidates",
+            "",
+            "| Rank | Seed | Sample | v_inf | Gain | Delta eps | Delta v_inf | Turning diag | Deflection | Periapsis AU | Closure |",
+            "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for cand in top_candidates[:10]:
+            lines.append(
+                f"| {cand.get('rank', '-')} | "
+                f"{cand.get('seed', '-')} | "
+                f"{cand.get('sample_index', '-')} | "
+                f"{_fmt(cand.get('v_inf_kms'), '.4g')} | "
+                f"{_fmt(cand.get('energy_gain_dimensionless'), '.5g')} | "
+                f"{_fmt(cand.get('delta_specific_energy_com'), '.5g')} | "
+                f"{_fmt(cand.get('delta_v_inf'), '.5g')} | "
+                f"{_fmt(cand.get('turning_quadratic'), '.5g')} | "
+                f"{_fmt(cand.get('deflection_deg'), '.5g')} | "
+                f"{_fmt_au_from_km(cand.get('periapsis_planet_km'), '.5g')} | "
+                f"{_fmt(cand.get('work_energy_closure_relative'), '.2e')} |"
+            )
+    else:
+        lines += [
+            "No eligible escaped, solver-successful samples with finite COM energy gain "
+            "were available for `top_candidates.csv` in this run.",
+        ]
+
     if svar_rows:
         lines += [
             "",
@@ -305,8 +404,9 @@ def generate_report(
         f"| Work-energy closure | {'PASS' if val.get('work_energy_passed') else 'FAIL'} | "
         f"{_fmt(val.get('work_energy_max_relative', 'nan'), '.3e')} | "
         f"{config.validation.work_energy_relative_tolerance:.2e} |",
-        f"| Tail CI checks | {'PASS' if val.get('tail_checks_passed') else 'FAIL'} | — | "
+        f"| Ability tail CI checks (q>=0.01) | {'PASS' if val.get('tail_checks_passed') else 'FAIL'} | - | "
         f"UB <= {config.planar_width.max_tail_event_fraction:.3g} |",
+        f"| q=0 tail diagnostic | {'PASS' if val.get('q0_tail_diagnostic_passed') else 'FAIL'} | - | diagnostic |",
         f"| Time-limit fraction | {'PASS' if val.get('time_limit_passed', True) else 'FAIL'} | "
         f"{_pct(val.get('time_limit_fraction', 0))} "
         f"({val.get('time_limit_count', 0)} samples) | "
@@ -343,6 +443,8 @@ def generate_report(
         "| `work_energy_closure_relative` | abs(delta_epsilon - W_total) / scale | Integration quality |",
         "| `periapsis_planet_km` | Min test-particle–planet distance | Physical encounter depth |",
         "| `deflection_rad` | COM-frame velocity deflection angle | Boost-invariant |",
+        "| `best_observed_gain` | Rank-1 finite-sample `energy_gain_dimensionless` | Observed sample maximum, not a physical maximum |",
+        "| `top_candidates.csv` | Ranked escaped, solver-successful finite-gain samples | Exploratory diagnostic artifact |",
         "",
         "> `turning_quadratic` can be large for a constant-speed reversal with zero energy gain.",
         "",
@@ -350,7 +452,7 @@ def generate_report(
         "",
         "## Diagnostic Figures",
         "",
-        "All figures read from `samples.csv` and `width_summary.csv`. "
+        "All figures read from `samples.csv`, `width_summary.csv`, and `top_candidates.csv` where applicable. "
         "Regenerate at any time with: `slingshot plot <run_dir>`",
         "",
     ]
@@ -395,8 +497,8 @@ def generate_report(
         "4. **Sample extrema.** The highest-gain trajectories in any finite sample are "
         "dominated by extreme-value instability and are not converged optima.",
         "",
-        "5. **Tail gate.** If tail_check_passed is False, the width estimate is a lower bound "
-        "and b_max should be increased.",
+        "5. **Tail gate.** For q>=0.01, failed tail gates mean the ability-width estimate is a lower bound "
+        "and b_max should be increased. Failed q=0 tails are diagnostic of weak distant perturbations."
         "",
         "6. **Time-limited trajectories.** Trajectories that hit max_time_sec are counted "
         "as non-events, reducing width estimates.",
